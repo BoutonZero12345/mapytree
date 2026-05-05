@@ -1,17 +1,14 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import MainLayout from './layouts/MainLayout';
-import Dashboard from './pages/Dashboard';
+import Dashboard from './features/dashboard/components/Dashboard';
+import PlanningLayout from './features/planning/components/PlanningLayout';
 
-function App() {
+export default function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route element={<MainLayout />}>
-          <Route path="/" element={<Dashboard />} />
-        </Route>
+        <Route path="/" element={<Dashboard />} />
+        <Route path="/plan/:id" element={<PlanningLayout />} />
       </Routes>
     </BrowserRouter>
   );
 }
-
-export default App;
