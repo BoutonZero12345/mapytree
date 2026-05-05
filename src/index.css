@@ -1,0 +1,8 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Empêche le pull-to-refresh sur mobile pour une sensation d'app native */
+body {
+  overscroll-behavior-y: none;
+}
