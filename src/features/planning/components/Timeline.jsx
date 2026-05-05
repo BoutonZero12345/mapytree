@@ -1,12 +1,73 @@
 import { useEffect, useState } from 'react';
 import { useDateStore } from '../store/useDateStore';
+import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
+import { SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
+// SOUS-COMPOSANT : Un bloc déplaçable
+function SortableBlock({ block, index, travelInfo, isLast }) {
+    const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: block.id });
+
+    const style = {
+        transform: CSS.Transform.toString(transform),
+        transition,
+        zIndex: isDragging ? 50 : 1,
+        position: 'relative',
+    };
+
+    return (
+        <div ref={setNodeRef} style={style}>
+            <div className={`bg-white border ${isDragging ? 'border-blue-500 shadow-xl' : 'border-gray-200'} rounded-xl p-4 shadow-sm flex flex-col gap-2`}>
+                <div className="flex items-center gap-3">
+                    {/* Poignée de déplacement */}
+                    <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing text-gray-400 hover:text-gray-700 p-1 touch-none">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <circle cx="9" cy="12" r="1"></circle>
+                            <circle cx="9" cy="5" r="1"></circle>
+                            <circle cx="9" cy="19" r="1"></circle>
+                            <circle cx="15" cy="12" r="1"></circle>
+                            <circle cx="15" cy="5" r="1"></circle>
+                            <circle cx="15" cy="19" r="1"></circle>
+                        </svg>
+                    </div>
+
+                    <div className="bg-blue-100 text-blue-600 font-bold w-8 h-8 rounded-full flex items-center justify-center shrink-0">
+                        {index + 1}
+                    </div>
+                    <div className="overflow-hidden">
+                        <h3 className="font-bold text-gray-800 truncate">{block.name}</h3>
+                        <p className="text-xs text-gray-500 truncate">{block.address}</p>
+                    </div>
+                </div>
+                <div className="pl-[3.5rem] flex items-center gap-2 mt-1">
+                    <span className="text-sm text-gray-600">Durée :</span>
+                    <input
+                        type="number"
+                        defaultValue={block.durationMinutes}
+                        className="border border-gray-300 rounded-md px-2 py-1 w-20 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800"
+                    />
+                    <span className="text-sm text-gray-600">min</span>
+                </div>
+            </div>
+
+            {/* Affichage du trajet sous le bloc s'il n'est pas le dernier */}
+            {!isLast && travelInfo && (
+                <div className="flex items-center gap-2 pl-[4.75rem] py-2 text-sm text-gray-500 font-medium border-l-2 border-dashed border-gray-300 ml-[1.8rem]">
+                    <span>🚗 Trajet : {travelInfo.duration} ({travelInfo.distance})</span>
+                </div>
+            )}
+        </div>
+    );
+}
+
+// COMPOSANT PRINCIPAL : La Timeline
 export default function Timeline() {
     const blocks = useDateStore((state) => state.blocks);
     const scenarios = useDateStore((state) => state.scenarios);
     const activeScenarioId = useDateStore((state) => state.activeScenarioId);
     const setActiveScenario = useDateStore((state) => state.setActiveScenario);
     const addScenario = useDateStore((state) => state.addScenario);
+    const reorderBlocks = useDateStore((state) => state.reorderBlocks);
 
     const travelInfos = useDateStore((state) => state.travelInfos);
     const loadFromDb = useDateStore((state) => state.loadFromDb);
@@ -29,6 +90,25 @@ export default function Timeline() {
             addScenario(newScenarioName.trim());
             setNewScenarioName('');
             setIsAddingScenario(false);
+        }
+    };
+
+    // Configuration de la sensibilité du drag & drop
+    const sensors = useSensors(
+        useSensor(PointerSensor, {
+            activationConstraint: {
+                distance: 5, // Il faut glisser de 5px pour déclencher le drag (protège les clics)
+            },
+        }),
+        useSensor(KeyboardSensor, {
+            coordinateGetter: sortableKeyboardCoordinates,
+        })
+    );
+
+    const handleDragEnd = (event) => {
+        const { active, over } = event;
+        if (over && active.id !== over.id) {
+            reorderBlocks(active.id, over.id);
         }
     };
 
@@ -82,36 +162,19 @@ export default function Timeline() {
                 </div>
             ) : (
                 <div className="flex-1 overflow-y-auto flex flex-col gap-2 pb-4">
-                    {activeBlocks.map((block, index) => (
-                        <div key={block.id}>
-                            <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm flex flex-col gap-2">
-                                <div className="flex items-center gap-3">
-                                    <div className="bg-blue-100 text-blue-600 font-bold w-8 h-8 rounded-full flex items-center justify-center shrink-0">
-                                        {index + 1}
-                                    </div>
-                                    <div className="overflow-hidden">
-                                        <h3 className="font-bold text-gray-800 truncate">{block.name}</h3>
-                                        <p className="text-xs text-gray-500 truncate">{block.address}</p>
-                                    </div>
-                                </div>
-                                <div className="pl-11 flex items-center gap-2 mt-1">
-                                    <span className="text-sm text-gray-600">Durée :</span>
-                                    <input
-                                        type="number"
-                                        defaultValue={block.durationMinutes}
-                                        className="border border-gray-300 rounded-md px-2 py-1 w-20 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800"
-                                    />
-                                    <span className="text-sm text-gray-600">min</span>
-                                </div>
-                            </div>
-
-                            {index < activeBlocks.length - 1 && travelInfos[index] && (
-                                <div className="flex items-center gap-2 pl-7 py-2 text-sm text-gray-500 font-medium border-l-2 border-dashed border-gray-300 ml-4">
-                                    <span>🚗 Trajet : {travelInfos[index].duration} ({travelInfos[index].distance})</span>
-                                </div>
-                            )}
-                        </div>
-                    ))}
+                    <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                        <SortableContext items={activeBlocks.map(b => b.id)} strategy={verticalListSortingStrategy}>
+                            {activeBlocks.map((block, index) => (
+                                <SortableBlock
+                                    key={block.id}
+                                    block={block}
+                                    index={index}
+                                    travelInfo={travelInfos[index]}
+                                    isLast={index === activeBlocks.length - 1}
+                                />
+                            ))}
+                        </SortableContext>
+                    </DndContext>
                 </div>
             )}
 

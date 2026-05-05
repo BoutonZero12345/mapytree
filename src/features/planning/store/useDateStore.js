@@ -32,6 +32,28 @@ export const useDateStore = create((set, get) => ({
         ]
     })),
 
+    // NOUVELLE FONCTION : Réorganiser les blocs
+    reorderBlocks: (activeId, overId) => set((state) => {
+        const activeBlocks = state.blocks.filter(b => b.scenarioId === state.activeScenarioId);
+        const oldIndex = activeBlocks.findIndex(b => b.id === activeId);
+        const newIndex = activeBlocks.findIndex(b => b.id === overId);
+
+        if (oldIndex === -1 || newIndex === -1) return state;
+
+        // Déplacer l'élément dans la liste du scénario actif
+        const reorderedBlocks = [...activeBlocks];
+        const [movedBlock] = reorderedBlocks.splice(oldIndex, 1);
+        reorderedBlocks.splice(newIndex, 0, movedBlock);
+
+        // Mettre à jour les numéros d'ordre
+        const finalActiveBlocks = reorderedBlocks.map((b, i) => ({ ...b, order: i + 1 }));
+
+        // Garder les blocs des autres scénarios intacts
+        const otherBlocks = state.blocks.filter(b => b.scenarioId !== state.activeScenarioId);
+
+        return { blocks: [...otherBlocks, ...finalActiveBlocks] };
+    }),
+
     updateTravelInfos: (infos) => set({ travelInfos: infos }),
 
     loadFromDb: async () => {
