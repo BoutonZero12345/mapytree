@@ -3,9 +3,21 @@ import { saveDatePlan, loadDatePlan } from '../../../services/db';
 
 export const useDateStore = create((set, get) => ({
     blocks: [],
+    scenarios: [{ id: 'plan_a', name: 'Plan A' }],
+    activeScenarioId: 'plan_a',
     travelInfos: [],
     isSaving: false,
     isLoading: false,
+
+    setActiveScenario: (id) => set({ activeScenarioId: id }),
+
+    addScenario: (name) => {
+        const newId = crypto.randomUUID();
+        set((state) => ({
+            scenarios: [...state.scenarios, { id: newId, name }],
+            activeScenarioId: newId
+        }));
+    },
 
     addBlock: (place) => set((state) => ({
         blocks: [
@@ -13,8 +25,9 @@ export const useDateStore = create((set, get) => ({
             {
                 ...place,
                 id: crypto.randomUUID(),
-                order: state.blocks.length + 1,
-                durationMinutes: 60
+                order: state.blocks.filter(b => b.scenarioId === state.activeScenarioId).length + 1,
+                durationMinutes: 60,
+                scenarioId: state.activeScenarioId
             }
         ]
     })),
@@ -23,13 +36,25 @@ export const useDateStore = create((set, get) => ({
 
     loadFromDb: async () => {
         set({ isLoading: true });
-        const blocks = await loadDatePlan();
-        set({ blocks, isLoading: false });
+        const data = await loadDatePlan();
+        if (data) {
+            set({
+                blocks: data.blocks || [],
+                scenarios: data.scenarios || [{ id: 'plan_a', name: 'Plan A' }],
+                activeScenarioId: data.scenarios ? data.scenarios[0].id : 'plan_a',
+                isLoading: false
+            });
+        } else {
+            set({ isLoading: false });
+        }
     },
 
     saveToDb: async () => {
         set({ isSaving: true });
-        await saveDatePlan(get().blocks);
+        await saveDatePlan({
+            blocks: get().blocks,
+            scenarios: get().scenarios
+        });
         set({ isSaving: false });
     }
 }));

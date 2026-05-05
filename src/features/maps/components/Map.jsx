@@ -23,8 +23,11 @@ export default function Map() {
     const directionsService = useRef(null);
 
     const blocks = useDateStore((state) => state.blocks);
+    const activeScenarioId = useDateStore((state) => state.activeScenarioId);
     const addBlock = useDateStore((state) => state.addBlock);
     const updateTravelInfos = useDateStore((state) => state.updateTravelInfos);
+
+    const activeBlocks = blocks.filter(b => b.scenarioId === activeScenarioId);
 
     const { isLoaded } = useJsApiLoader({
         id: 'google-map-script',
@@ -48,7 +51,7 @@ export default function Map() {
     };
 
     useEffect(() => {
-        if (!window.google || blocks.length < 2) {
+        if (!window.google || activeBlocks.length < 2) {
             setDirectionsResponse(null);
             updateTravelInfos([]);
             return;
@@ -58,10 +61,10 @@ export default function Map() {
             directionsService.current = new window.google.maps.DirectionsService();
         }
 
-        const origin = { lat: blocks[0].lat, lng: blocks[0].lng };
-        const destination = { lat: blocks[blocks.length - 1].lat, lng: blocks[blocks.length - 1].lng };
+        const origin = { lat: activeBlocks[0].lat, lng: activeBlocks[0].lng };
+        const destination = { lat: activeBlocks[activeBlocks.length - 1].lat, lng: activeBlocks[activeBlocks.length - 1].lng };
 
-        const waypoints = blocks.slice(1, -1).map((block) => ({
+        const waypoints = activeBlocks.slice(1, -1).map((block) => ({
             location: { lat: block.lat, lng: block.lng },
             stopover: true
         }));
@@ -85,7 +88,7 @@ export default function Map() {
                 }
             }
         );
-    }, [blocks, updateTravelInfos]);
+    }, [activeBlocks, updateTravelInfos]);
 
     if (!isLoaded) return <div className="w-full h-full flex items-center justify-center bg-gray-100 text-gray-500">Chargement...</div>;
 
@@ -111,7 +114,7 @@ export default function Map() {
                         }}
                     />
                 ) : (
-                    blocks.map((block) => (
+                    activeBlocks.map((block) => (
                         <MarkerF key={block.id} position={{ lat: block.lat, lng: block.lng }} />
                     ))
                 )}
