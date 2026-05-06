@@ -17,28 +17,35 @@ export default function PlanningLayout() {
     }, [id, loadFromDb]);
 
     return (
-        <div className="flex h-screen w-full bg-gray-50 overflow-hidden">
-            {/* Sidebar Gauche */}
-            <div className="w-full md:w-[450px] bg-white shadow-xl z-10 flex flex-col">
-                <div className="p-4 border-b flex items-center gap-3">
+        // L'utilisation de h-[100dvh] est le secret pour les téléphones !
+        <div className="flex flex-col md:flex-row h-[100dvh] w-full bg-gray-50 overflow-hidden">
+
+            {/* Zone Carte (En haut sur mobile, prend 45% de l'écran. À droite sur PC, prend le reste) */}
+            <div className="w-full h-[45%] md:h-full md:flex-1 relative order-1 md:order-2 border-b md:border-b-0 border-gray-300 z-0">
+                <Map />
+            </div>
+
+            {/* Sidebar Timeline (En bas sur mobile, prend 55%. À gauche sur PC, fixe à 450px) */}
+            <div className="w-full h-[55%] md:h-full md:w-[450px] bg-white shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)] md:shadow-xl z-10 flex flex-col order-2 md:order-1">
+
+                {/* En-tête avec bouton retour */}
+                <div className="p-3 md:p-4 border-b flex items-center gap-3 shrink-0">
                     <button
                         onClick={() => navigate('/')}
                         className="p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-600"
-                        title="Retour au tableau de bord"
+                        title="Retour"
                     >
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6" /></svg>
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6" /></svg>
                     </button>
-                    <h1 className="text-xl font-extrabold text-gray-800 truncate">{currentDateName || 'Chargement...'}</h1>
+                    <h1 className="text-lg md:text-xl font-extrabold text-gray-800 truncate">{currentDateName || 'Chargement...'}</h1>
                 </div>
-                <div className="flex-1 overflow-hidden p-4">
+
+                {/* Zone déroulante du planning */}
+                <div className="flex-1 overflow-hidden p-3 md:p-4">
                     <Timeline />
                 </div>
             </div>
 
-            {/* Zone Carte */}
-            <div className="flex-1 relative">
-                <Map />
-            </div>
         </div>
     );
 }
