@@ -1,92 +1,39 @@
-import { useState, useEffect, useRef } from 'react';
+import { Autocomplete } from '@react-google-maps/api';
+import { usePlaceSearch } from '../hooks/usePlaceSearch';
 
 export default function SearchBar({ onPlaceSelected }) {
-    const [input, setInput] = useState('');
-    const [predictions, setPredictions] = useState([]);
-    const [isOpen, setIsOpen] = useState(false);
-    const autocompleteService = useRef(null);
-    const geocoder = useRef(null);
-
-    useEffect(() => {
-        if (!window.google) return;
-        if (!autocompleteService.current) {
-            autocompleteService.current = new window.google.maps.places.AutocompleteService();
-        }
-        if (!geocoder.current) {
-            geocoder.current = new window.google.maps.Geocoder();
-        }
-    }, []);
-
-    useEffect(() => {
-        if (!input.trim()) {
-            setPredictions([]);
-            setIsOpen(false);
-            return;
-        }
-
-        const timer = setTimeout(() => {
-            if (autocompleteService.current) {
-                autocompleteService.current.getPlacePredictions(
-                    { input },
-                    (results, status) => {
-                        if (status === window.google.maps.places.PlacesServiceStatus.OK && results) {
-                            setPredictions(results);
-                            setIsOpen(true);
-                        } else {
-                            setPredictions([]);
-                        }
-                    }
-                );
-            }
-        }, 500);
-
-        return () => clearTimeout(timer);
-    }, [input]);
-
-    const handleSelect = (placeId, description) => {
-        setInput(description);
-        setIsOpen(false);
-        setPredictions([]);
-
-        if (geocoder.current) {
-            geocoder.current.geocode({ placeId }, (results, status) => {
-                if (status === 'OK' && results[0]) {
-                    const location = results[0].geometry.location;
-                    onPlaceSelected({
-                        name: description.split(',')[0],
-                        lat: location.lat(),
-                        lng: location.lng(),
-                        placeId: placeId,
-                        address: description,
-                    });
-                }
-            });
-        }
-    };
+    // On récupère notre logique déportée
+    const { handleLoad, handlePlaceChanged } = usePlaceSearch(onPlaceSelected);
 
     return (
-        <div className="absolute top-4 left-1/2 transform -translate-x-1/2 w-11/12 max-w-md z-10">
-            <input
-                type="text"
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                placeholder="Rechercher un lieu, un restaurant..."
-                className="w-full px-5 py-3 rounded-full shadow-lg border-none focus:ring-2 focus:ring-blue-500 outline-none text-gray-700 bg-white"
-            />
+        <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-10 w-11/12 max-w-md">
+            <div className="relative flex items-center bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden focus-within:ring-2 focus-within:ring-blue-500 transition-all">
 
-            {isOpen && predictions.length > 0 && (
-                <ul className="absolute top-full left-0 w-full bg-white mt-2 rounded-2xl shadow-xl overflow-hidden z-20">
-                    {predictions.map((prediction) => (
-                        <li
-                            key={prediction.place_id}
-                            onClick={() => handleSelect(prediction.place_id, prediction.description)}
-                            className="px-5 py-3 hover:bg-gray-100 cursor-pointer text-sm text-gray-700 border-b border-gray-100 last:border-none"
-                        >
-                            {prediction.description}
-                        </li>
-                    ))}
-                </ul>
-            )}
+                {/* Icône de recherche (Loupe) */}
+                <div className="pl-4 pr-2 text-gray-400">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <circle cx="11" cy="11" r="8"></circle>
+                        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                    </svg>
+                </div>
+
+                {/* Le composant Google Maps Autocomplete */}
+                <div className="flex-1">
+                    <Autocomplete
+                        onLoad={handleLoad}
+                        onPlaceChanged={handlePlaceChanged}
+                        // Optimisation API : on demande uniquement ce dont on a besoin
+                        fields={['name', 'formatted_address', 'geometry']}
+                    >
+                        <input
+                            type="text"
+                            placeholder="Rechercher un lieu, un resto, un musée..."
+                            className="w-full py-3 pr-4 border-0 focus:outline-none focus:ring-0 text-gray-800 placeholder-gray-400 bg-transparent"
+                        />
+                    </Autocomplete>
+                </div>
+
+            </div>
         </div>
     );
 }
