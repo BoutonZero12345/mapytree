@@ -1,8 +1,14 @@
 export const createScenarioSlice = (set, get) => ({
     scenarios: [{ id: 'plan_a', name: 'Plan A' }],
     activeScenarioId: 'plan_a',
+    startTime: '09:00',
+    isScheduleExpanded: true, // NOUVEAU : Gère l'ouverture du tiroir
 
     setActiveScenario: (id) => set({ activeScenarioId: id }),
+    setStartTime: (time) => set({ startTime: time }),
+
+    // NOUVEAU : Fonction pour ouvrir/fermer le tiroir
+    toggleScheduleExpanded: () => set((state) => ({ isScheduleExpanded: !state.isScheduleExpanded })),
 
     addScenario: (name) => {
         const newId = crypto.randomUUID();
@@ -17,12 +23,11 @@ export const createScenarioSlice = (set, get) => ({
     })),
 
     deleteScenario: (id) => set((state) => {
-        if (state.scenarios.length <= 1) return state; // Empêche de supprimer le dernier plan
+        if (state.scenarios.length <= 1) return state;
         const newScenarios = state.scenarios.filter(s => s.id !== id);
         return {
             scenarios: newScenarios,
             activeScenarioId: state.activeScenarioId === id ? newScenarios[0].id : state.activeScenarioId,
-            // On supprime aussi les lieux de ce plan (Zustand permet de lire state.blocks même si c'est dans une autre tranche)
             blocks: state.blocks.filter(b => b.scenarioId !== id)
         };
     }),
