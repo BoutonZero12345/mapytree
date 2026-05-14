@@ -99,12 +99,21 @@ export default function Map() {
     const handleBroadSearch = useCallback((query, filterParams = {}) => {
         if (!mapRef.current || !query.trim()) return;
 
+        // Mapping des prix Euro vers les niveaux Google (0-4)
+        const getPriceLevel = (euro) => {
+            if (!euro || euro === 0) return 0;
+            if (euro <= 20) return 1;
+            if (euro <= 50) return 2;
+            if (euro <= 100) return 3;
+            return 4;
+        };
+
         const service = new window.google.maps.places.PlacesService(mapRef.current);
         const request = {
             query: query,
             bounds: mapRef.current.getBounds(),
-            minPriceLevel: 0, // Optionnel : on pourrait forcer 0
-            maxPriceLevel: filterParams.maxPrice || 4
+            minPriceLevel: getPriceLevel(filterParams.minPrice),
+            maxPriceLevel: filterParams.maxPrice === 0 ? 4 : getPriceLevel(filterParams.maxPrice)
         };
 
         service.textSearch(request, (results, status) => {

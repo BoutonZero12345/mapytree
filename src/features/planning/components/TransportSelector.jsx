@@ -20,6 +20,11 @@ export default function TransportSelector({ nextBlockId, nextBlockMode, nextBloc
         updateBlockDetails(nextBlockId, { isTransportLocked: !isLocked });
     };
 
+    // NOUVEAU : Si pas d'itinéraire (événement vide), on n'affiche rien du tout
+    if (!travelInfo || travelInfo.duration === '0 min' || travelInfo.duration === 'N/A' || nextBlockMode === 'NONE') {
+        return null;
+    }
+
     return (
         <div className="flex flex-col gap-2 ml-[1.8rem] pl-[4.75rem] py-3 border-l-2 border-dashed border-gray-300 transition-all">
 
