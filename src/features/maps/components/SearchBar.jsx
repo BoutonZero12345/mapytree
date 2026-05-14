@@ -3,9 +3,9 @@ import { Autocomplete } from '@react-google-maps/api';
 import { usePlaceSearch } from '../hooks/usePlaceSearch';
 import { useDateStore } from '../../planning/store/useDateStore';
 
-export default function SearchBar({ onPlaceSelected }) {
+export default function SearchBar({ onPlaceSelected, onSearchRequested, onClearSearch }) {
     const { handleLoad, handlePlaceChanged } = usePlaceSearch(onPlaceSelected);
-    const favorites = useDateStore((state) => state.favorites);
+    const favorites = useDateStore((state) => state.favorites || []);
     const [searchTerm, setSearchTerm] = useState('');
     const [showFavSuggestions, setShowFavSuggestions] = useState(false);
     const [ignoredFavs, setIgnoredFavs] = useState([]);
@@ -27,6 +27,15 @@ export default function SearchBar({ onPlaceSelected }) {
     const handleIgnoreFavorite = (e, favId) => {
         e.stopPropagation();
         setIgnoredFavs(prev => [...prev, favId]);
+    };
+
+    const handleKeyDown = (e) => {
+        if (e.key === 'Enter') {
+            if (searchTerm.trim()) {
+                onSearchRequested(searchTerm);
+                setShowFavSuggestions(false);
+            }
+        }
     };
 
     return (
@@ -63,13 +72,17 @@ export default function SearchBar({ onPlaceSelected }) {
                 )}
 
                 <div className="relative flex items-center bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden focus-within:ring-2 focus-within:ring-blue-500 transition-all">
-                    {/* Icône de recherche (Loupe) */}
-                    <div className="pl-4 pr-2 text-gray-400">
+                    {/* Bouton de recherche (Loupe) */}
+                    <button 
+                        onClick={() => searchTerm.trim() && onSearchRequested(searchTerm)}
+                        className="pl-4 pr-2 text-gray-400 hover:text-blue-500 transition-colors"
+                        title="Recherche large"
+                    >
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                             <circle cx="11" cy="11" r="8"></circle>
                             <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
                         </svg>
-                    </div>
+                    </button>
 
                     {/* Le composant Google Maps Autocomplete */}
                     <div className="flex-1">
@@ -86,11 +99,29 @@ export default function SearchBar({ onPlaceSelected }) {
                                     setShowFavSuggestions(true);
                                 }}
                                 onFocus={() => setShowFavSuggestions(true)}
+                                onKeyDown={handleKeyDown}
                                 placeholder="Rechercher un lieu, un resto, un musée..."
                                 className="w-full py-3 pr-4 border-0 focus:outline-none focus:ring-0 text-gray-800 placeholder-gray-400 bg-transparent"
                             />
                         </Autocomplete>
                     </div>
+
+                    {/* Bouton de nettoyage */}
+                    {searchTerm && (
+                        <button 
+                            onClick={() => {
+                                setSearchTerm('');
+                                onClearSearch();
+                            }}
+                            className="pr-4 pl-2 text-gray-400 hover:text-gray-600 transition-colors"
+                            title="Effacer la recherche"
+                        >
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <line x1="18" y1="6" x2="6" y2="18"></line>
+                                <line x1="6" y1="6" x2="18" y2="18"></line>
+                            </svg>
+                        </button>
+                    )}
                 </div>
             </div>
         </div>

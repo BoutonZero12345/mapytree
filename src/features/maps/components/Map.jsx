@@ -12,13 +12,14 @@ const libraries = ['places', 'geometry'];
 export default function Map() {
     const [mapCenter, setMapCenter] = useState(defaultCenter);
     const [selectedPlace, setSelectedPlace] = useState(null);
+    const [searchResults, setSearchResults] = useState([]); // NOUVEAU : Résultats de recherche multiple
     const mapRef = useRef(null);
 
     const blocks = useDateStore((state) => state.blocks);
     const activeScenarioId = useDateStore((state) => state.activeScenarioId);
     const addBlock = useDateStore((state) => state.addBlock);
-    const favorites = useDateStore((state) => state.favorites);
-    const categories = useDateStore((state) => state.categories);
+    const favorites = useDateStore((state) => state.favorites || []);
+    const categories = useDateStore((state) => state.categories || []);
     const toggleFavorite = useDateStore((state) => state.toggleFavorite);
     const loadFavorites = useDateStore((state) => state.loadFavorites);
 
@@ -27,15 +28,15 @@ export default function Map() {
     const { cachedSegments } = useRouteLogic(activeBlocks);
 
     useEffect(() => {
-        loadFavorites();
+        loadFavorites?.();
     }, [loadFavorites]);
 
     const { isLoaded } = useJsApiLoader({
         id: 'google-map-script',
         googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY,
         libraries: libraries,
-        language: 'fr', // NOUVEAU : Force les instructions en français
-        region: 'FR'    // NOUVEAU : Optimise les résultats pour la France
+        language: 'fr',
+        region: 'FR'
     });
 
     const onMapLoad = useCallback((map) => { mapRef.current = map; }, []);
@@ -85,11 +86,43 @@ export default function Map() {
         const newLocation = { lat: place.lat, lng: place.lng };
         setSelectedPlace(place);
         setMapCenter(newLocation);
+        setSearchResults([]); // Nettoyage recherche large
         if (mapRef.current) {
             mapRef.current.setZoom(15);
             mapRef.current.panTo(newLocation);
         }
     };
+
+    // NOUVEAU : Fonction de recherche textuelle large (restaurants, etc.)
+    const handleBroadSearch = useCallback((query) => {
+        if (!mapRef.current || !query.trim()) return;
+
+        const service = new window.google.maps.places.PlacesService(mapRef.current);
+        const request = {
+            query: query,
+            bounds: mapRef.current.getBounds(),
+        };
+
+        service.textSearch(request, (results, status) => {
+            if (status === window.google.maps.places.PlacesServiceStatus.OK && results) {
+                const formattedResults = results.map(res => ({
+                    id: res.place_id,
+                    placeId: res.place_id,
+                    name: res.name,
+                    address: res.formatted_address,
+                    lat: res.geometry.location.lat(),
+                    lng: res.geometry.location.lng()
+                }));
+                setSearchResults(formattedResults);
+                
+                if (formattedResults.length > 0) {
+                    const bounds = new window.google.maps.LatLngBounds();
+                    formattedResults.forEach(res => bounds.extend({ lat: res.lat, lng: res.lng }));
+                    mapRef.current.fitBounds(bounds);
+                }
+            }
+        });
+    }, []);
 
     if (!isLoaded) return <div className="w-full h-full flex items-center justify-center bg-gray-100 text-gray-500">Chargement de la carte...</div>;
 
@@ -99,7 +132,11 @@ export default function Map() {
 
     return (
         <div className="relative w-full h-full">
-            <SearchBar onPlaceSelected={handlePlaceSelected} />
+            <SearchBar 
+                onPlaceSelected={handlePlaceSelected} 
+                onSearchRequested={handleBroadSearch}
+                onClearSearch={() => setSearchResults([])}
+            />
 
             <GoogleMap
                 mapContainerStyle={containerStyle}
@@ -109,8 +146,19 @@ export default function Map() {
                 onClick={handleMapClick}
                 options={{ disableDefaultUI: true, zoomControl: true }}
             >
+                {/* Marqueurs du planning */}
                 {activeBlocks.map((block) => (
                     <MarkerF key={block.id} position={{ lat: block.lat, lng: block.lng }} />
+                ))}
+
+                {/* NOUVEAU : Marqueurs de résultats de recherche (Orange) */}
+                {searchResults.map((res) => (
+                    <MarkerF 
+                        key={res.id} 
+                        position={{ lat: res.lat, lng: res.lng }}
+                        icon="http://maps.google.com/mapfiles/ms/icons/orange-dot.png"
+                        onClick={() => setSelectedPlace(res)}
+                    />
                 ))}
 
                 <RouteRenderer segments={cachedSegments} />
@@ -133,7 +181,7 @@ export default function Map() {
                                 </div>
                                 <p className="text-sm text-gray-600">{selectedPlace.address}</p>
                                 <button
-                                    onClick={() => { addBlock(selectedPlace); setSelectedPlace(null); }}
+                                    onClick={() => { addBlock(selectedPlace); setSelectedPlace(null); setSearchResults([]); }}
                                     className="bg-blue-600 text-white px-3 py-2 rounded-md text-sm font-semibold hover:bg-blue-700 mt-1"
                                 >
                                     Ajouter au planning
