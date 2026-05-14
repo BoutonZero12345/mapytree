@@ -12,6 +12,7 @@ export const createBlockSlice = (set, get) => ({
                     budget: 0,
                     notes: '',
                     color: '#0ea5e9',
+                    fixedStartTime: null,
                     ...place,
                     id: crypto.randomUUID(),
                     type: 'LOCATION',
@@ -41,6 +42,7 @@ export const createBlockSlice = (set, get) => ({
                     budget: 0,
                     notes: '',
                     color: '#94a3b8', // Couleur par défaut pour les événements
+                    fixedStartTime: null,
                     travelMode: 'NONE',
                     selectedRouteIndex: 0,
                     scenarioId: state.activeScenarioId

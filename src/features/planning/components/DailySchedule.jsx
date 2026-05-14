@@ -46,6 +46,27 @@ export default function DailySchedule() {
         const items = [];
 
         activeBlocks.forEach((block, index) => {
+            // NOUVEAU : Gestion de l'heure fixe
+            if (block.fixedStartTime) {
+                const [fH, fM] = block.fixedStartTime.split(':').map(Number);
+                const fixedMinutes = fH * 60 + fM;
+
+                // Si l'heure fixée est plus tard que l'heure d'arrivée prévue, on ajoute du "Temps libre"
+                if (fixedMinutes > currentMinutes) {
+                    items.push({
+                        id: `free-${block.id}`,
+                        name: 'Temps libre',
+                        duration: fixedMinutes - currentMinutes,
+                        startTime: currentMinutes,
+                        endTime: fixedMinutes,
+                        colors: { bg: '#f3f4f6', text: '#9ca3af' }, // Gris très clair (gray-100)
+                        isFreeTime: true
+                    });
+                }
+                // On cale l'horloge sur l'heure fixée (même si on est en retard, pour forcer le planning)
+                currentMinutes = fixedMinutes;
+            }
+
             const locationDuration = roundTo5(Number(block.durationMinutes) || 0);
             items.push({
                 id: `loc-${block.id}`,

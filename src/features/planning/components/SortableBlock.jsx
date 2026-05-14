@@ -120,6 +120,26 @@ export default function SortableBlock({ block, index, travelInfo, isLast, nextBl
 
                         <div className="flex flex-wrap items-center gap-3 md:gap-4">
                             <div className="flex flex-col gap-1">
+                                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-tight">Heure fixée</span>
+                                <div className="flex items-center gap-2 bg-gray-50 px-2 py-1 rounded-lg">
+                                    <span className="text-xs">📍</span>
+                                    <input 
+                                        type="time" 
+                                        value={block.fixedStartTime || ''} 
+                                        onChange={(e) => updateBlockDetails(block.id, { fixedStartTime: e.target.value || null })}
+                                        className="bg-transparent text-sm font-bold outline-none" 
+                                    />
+                                    {block.fixedStartTime && (
+                                        <button 
+                                            onClick={() => updateBlockDetails(block.id, { fixedStartTime: null })}
+                                            className="text-gray-400 hover:text-red-500 transition-colors"
+                                        >
+                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
+                            <div className="flex flex-col gap-1">
                                 <span className="text-[10px] font-bold text-gray-400 uppercase tracking-tight">Temps</span>
                                 <div className="flex items-center gap-2 bg-gray-50 px-2 py-1 rounded-lg">
                                     <span className="text-xs">⏱️</span>
