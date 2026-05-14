@@ -8,14 +8,14 @@ export const createBlockSlice = (set, get) => ({
             blocks: [
                 ...state.blocks,
                 {
+                    durationMinutes: 60,
+                    budget: 0,
+                    notes: '',
+                    color: '#0ea5e9',
                     ...place,
                     id: crypto.randomUUID(),
                     type: 'LOCATION',
                     order: state.blocks.filter(b => b.scenarioId === state.activeScenarioId).length + 1,
-                    durationMinutes: 60,
-                    budget: 0,
-                    notes: '',
-                    color: '#0ea5e9', // Couleur par défaut pour les lieux
                     travelMode: 'DRIVING',
                     selectedRouteIndex: 0,
                     scenarioId: state.activeScenarioId

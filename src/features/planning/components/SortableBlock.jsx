@@ -11,12 +11,16 @@ export default function SortableBlock({ block, index, travelInfo, isLast, nextBl
     const updateBlockColor = useDateStore((state) => state.updateBlockColor);
     const splitAtBlock = useDateStore((state) => state.splitAtBlock);
     const deleteBlock = useDateStore((state) => state.deleteBlock);
+    const favorites = useDateStore((state) => state.favorites);
+    const toggleFavorite = useDateStore((state) => state.toggleFavorite);
 
     const [isEditingName, setIsEditingName] = useState(false);
     const [editName, setEditName] = useState(block.name);
 
     // NOUVEAU : On gère l'état ouvert/fermé (fermé par défaut)
     const [isExpanded, setIsExpanded] = useState(false);
+
+    const isFavorite = favorites.some(f => (f.placeId && f.placeId === block.placeId) || (f.lat === block.lat && f.lng === block.lng));
 
     const PRESET_COLORS = ['#0ea5e9', '#3b82f6', '#8b5cf6', '#10b981', '#f59e0b', '#ef4444', '#ec4899', '#94a3b8'];
 
@@ -65,7 +69,7 @@ export default function SortableBlock({ block, index, travelInfo, isLast, nextBl
 
                     {/* Textes (Maintenant cliquables pour ouvrir/fermer) */}
                     <div
-                        className="flex-1 overflow-hidden cursor-pointer group"
+                        className="flex-1 overflow-hidden cursor-pointer group flex items-center gap-2"
                         onClick={() => !isEditingName && setIsExpanded(!isExpanded)}
                     >
                         {isEditingName ? (
@@ -79,14 +83,21 @@ export default function SortableBlock({ block, index, travelInfo, isLast, nextBl
                                 className="w-full px-2 py-1 text-sm border rounded-md border-blue-500 outline-none"
                             />
                         ) : (
-                            <>
-                                <h3 className={`font-bold truncate group-hover:text-blue-600 transition-colors ${block.type === 'EVENT' ? 'text-gray-500 italic' : 'text-gray-800'}`}>
-                                    {block.name}
-                                </h3>
+                            <div className="flex-1 overflow-hidden">
+                                <div className="flex items-center gap-2">
+                                    <h3 className={`font-bold truncate group-hover:text-blue-600 transition-colors ${block.type === 'EVENT' ? 'text-gray-500 italic' : 'text-gray-800'}`}>
+                                        {block.name}
+                                    </h3>
+                                    {block.type !== 'EVENT' && isFavorite && (
+                                        <span className="text-yellow-500 shrink-0">
+                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+                                        </span>
+                                    )}
+                                </div>
                                 {block.type !== 'EVENT' && (
                                     <p className="text-xs text-gray-500 truncate">{block.address}</p>
                                 )}
-                            </>
+                            </div>
                         )}
                     </div>
 
@@ -137,25 +148,37 @@ export default function SortableBlock({ block, index, travelInfo, isLast, nextBl
                             <textarea value={block.notes || ''} onChange={(e) => updateBlockDetails(block.id, { notes: e.target.value })} placeholder="Mémos..." className="flex-1 border border-gray-300 rounded-md px-3 py-2 text-sm resize-none h-14 outline-none focus:border-blue-500" />
                         </div>
 
-                        {/* Sélecteur de couleur */}
-                        <div className="flex items-center gap-3 mt-1 flex-wrap">
-                            <span className="text-sm text-gray-600">🎨</span>
-                            <div className="flex flex-wrap gap-1.5">
-                                {PRESET_COLORS.map(color => (
-                                    <button
-                                        key={color}
-                                        onClick={() => updateBlockColor(block.id, color)}
-                                        className={`w-5 h-5 rounded-full border-2 transition-transform hover:scale-110 ${block.color === color ? 'border-gray-800 scale-110' : 'border-transparent'}`}
-                                        style={{ backgroundColor: color }}
+                        {/* Sélecteur de couleur et favoris */}
+                        <div className="flex items-center justify-between gap-3 mt-1 flex-wrap">
+                            <div className="flex items-center gap-3">
+                                <span className="text-sm text-gray-600">🎨</span>
+                                <div className="flex flex-wrap gap-1.5">
+                                    {PRESET_COLORS.map(color => (
+                                        <button
+                                            key={color}
+                                            onClick={() => updateBlockColor(block.id, color)}
+                                            className={`w-5 h-5 rounded-full border-2 transition-transform hover:scale-110 ${block.color === color ? 'border-gray-800 scale-110' : 'border-transparent'}`}
+                                            style={{ backgroundColor: color }}
+                                        />
+                                    ))}
+                                    <input
+                                        type="color"
+                                        value={block.color || '#0ea5e9'}
+                                        onChange={(e) => updateBlockColor(block.id, e.target.value)}
+                                        className="w-5 h-5 rounded-full overflow-hidden border-none p-0 cursor-pointer hover:scale-110 transition-transform"
                                     />
-                                ))}
-                                <input
-                                    type="color"
-                                    value={block.color || '#0ea5e9'}
-                                    onChange={(e) => updateBlockColor(block.id, e.target.value)}
-                                    className="w-5 h-5 rounded-full overflow-hidden border-none p-0 cursor-pointer hover:scale-110 transition-transform"
-                                />
+                                </div>
                             </div>
+
+                            {block.type !== 'EVENT' && (
+                                <button
+                                    onClick={(e) => { e.stopPropagation(); toggleFavorite(block); }}
+                                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${isFavorite ? 'bg-yellow-100 text-yellow-600' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}
+                                >
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill={isFavorite ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+                                    {isFavorite ? 'Favori' : 'Mettre en favori'}
+                                </button>
+                            )}
                         </div>
                     </div>
                 )}
