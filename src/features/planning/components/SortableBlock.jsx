@@ -8,6 +8,7 @@ export default function SortableBlock({ block, index, travelInfo, isLast, nextBl
     const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: block.id });
 
     const updateBlockDetails = useDateStore((state) => state.updateBlockDetails);
+    const updateBlockColor = useDateStore((state) => state.updateBlockColor);
     const deleteBlock = useDateStore((state) => state.deleteBlock);
 
     const [isEditingName, setIsEditingName] = useState(false);
@@ -16,11 +17,15 @@ export default function SortableBlock({ block, index, travelInfo, isLast, nextBl
     // NOUVEAU : On gère l'état ouvert/fermé (fermé par défaut)
     const [isExpanded, setIsExpanded] = useState(false);
 
+    const PRESET_COLORS = ['#0ea5e9', '#3b82f6', '#8b5cf6', '#10b981', '#f59e0b', '#ef4444', '#ec4899', '#94a3b8'];
+
     const style = {
         transform: CSS.Transform.toString(transform),
         transition,
         zIndex: isDragging ? 50 : 1,
-        position: 'relative'
+        position: 'relative',
+        borderLeftWidth: '4px',
+        borderLeftColor: block.color || (block.type === 'EVENT' ? '#94a3b8' : '#0ea5e9')
     };
 
     const handleSaveName = () => {
@@ -30,7 +35,7 @@ export default function SortableBlock({ block, index, travelInfo, isLast, nextBl
 
     return (
         <div ref={setNodeRef} style={style}>
-            <div className={`bg-white border ${isDragging ? 'border-blue-500 shadow-xl' : 'border-gray-200'} rounded-xl p-4 shadow-sm flex flex-col gap-2 transition-all`}>
+            <div className={`bg-white border ${isDragging ? 'border-blue-500 shadow-xl' : (block.type === 'EVENT' ? 'border-dashed border-gray-300' : 'border-gray-200')} rounded-xl p-4 shadow-sm flex flex-col gap-2 transition-all`}>
 
                 {/* En-tête (Titre, adresse, actions) */}
                 <div className="flex items-center gap-3">
@@ -40,9 +45,13 @@ export default function SortableBlock({ block, index, travelInfo, isLast, nextBl
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="9" cy="12" r="1"></circle><circle cx="9" cy="5" r="1"></circle><circle cx="9" cy="19" r="1"></circle><circle cx="15" cy="12" r="1"></circle><circle cx="15" cy="5" r="1"></circle><circle cx="15" cy="19" r="1"></circle></svg>
                     </div>
 
-                    {/* Numéro du lieu */}
-                    <div className="bg-blue-100 text-blue-600 font-bold w-8 h-8 rounded-full flex items-center justify-center shrink-0">
-                        {index + 1}
+                    {/* Numéro ou Icône */}
+                    <div className={`${block.type === 'EVENT' ? 'bg-gray-100 text-gray-500' : 'bg-blue-100 text-blue-600'} font-bold w-8 h-8 rounded-full flex items-center justify-center shrink-0`}>
+                        {block.type === 'EVENT' ? (
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                        ) : (
+                            index + 1
+                        )}
                     </div>
 
                     {/* Textes (Maintenant cliquables pour ouvrir/fermer) */}
@@ -62,10 +71,12 @@ export default function SortableBlock({ block, index, travelInfo, isLast, nextBl
                             />
                         ) : (
                             <>
-                                <h3 className="font-bold text-gray-800 truncate group-hover:text-blue-600 transition-colors">
+                                <h3 className={`font-bold truncate group-hover:text-blue-600 transition-colors ${block.type === 'EVENT' ? 'text-gray-500 italic' : 'text-gray-800'}`}>
                                     {block.name}
                                 </h3>
-                                <p className="text-xs text-gray-500 truncate">{block.address}</p>
+                                {block.type !== 'EVENT' && (
+                                    <p className="text-xs text-gray-500 truncate">{block.address}</p>
+                                )}
                             </>
                         )}
                     </div>
@@ -112,6 +123,27 @@ export default function SortableBlock({ block, index, travelInfo, isLast, nextBl
                         <div className="flex items-start gap-2">
                             <span className="text-sm text-gray-600 mt-1">📝</span>
                             <textarea value={block.notes || ''} onChange={(e) => updateBlockDetails(block.id, { notes: e.target.value })} placeholder="Mémos..." className="flex-1 border border-gray-300 rounded-md px-3 py-2 text-sm resize-none h-14 outline-none focus:border-blue-500" />
+                        </div>
+
+                        {/* Sélecteur de couleur */}
+                        <div className="flex items-center gap-3 mt-1 flex-wrap">
+                            <span className="text-sm text-gray-600">🎨</span>
+                            <div className="flex flex-wrap gap-1.5">
+                                {PRESET_COLORS.map(color => (
+                                    <button
+                                        key={color}
+                                        onClick={() => updateBlockColor(block.id, color)}
+                                        className={`w-5 h-5 rounded-full border-2 transition-transform hover:scale-110 ${block.color === color ? 'border-gray-800 scale-110' : 'border-transparent'}`}
+                                        style={{ backgroundColor: color }}
+                                    />
+                                ))}
+                                <input
+                                    type="color"
+                                    value={block.color || '#0ea5e9'}
+                                    onChange={(e) => updateBlockColor(block.id, e.target.value)}
+                                    className="w-5 h-5 rounded-full overflow-hidden border-none p-0 cursor-pointer hover:scale-110 transition-transform"
+                                />
+                            </div>
                         </div>
                     </div>
                 )}

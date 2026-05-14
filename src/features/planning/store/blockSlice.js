@@ -10,10 +10,12 @@ export const createBlockSlice = (set, get) => ({
                 {
                     ...place,
                     id: crypto.randomUUID(),
+                    type: 'LOCATION',
                     order: state.blocks.filter(b => b.scenarioId === state.activeScenarioId).length + 1,
                     durationMinutes: 60,
                     budget: 0,
                     notes: '',
+                    color: '#0ea5e9', // Couleur par défaut pour les lieux
                     travelMode: 'DRIVING',
                     selectedRouteIndex: 0,
                     scenarioId: state.activeScenarioId
@@ -21,6 +23,37 @@ export const createBlockSlice = (set, get) => ({
             ]
         });
     },
+
+    addGenericEvent: () => {
+        const state = get();
+        set({
+            blocks: [
+                ...state.blocks,
+                {
+                    id: crypto.randomUUID(),
+                    type: 'EVENT',
+                    name: 'vide',
+                    address: '',
+                    lat: null,
+                    lng: null,
+                    order: state.blocks.filter(b => b.scenarioId === state.activeScenarioId).length + 1,
+                    durationMinutes: 0,
+                    budget: 0,
+                    notes: '',
+                    color: '#94a3b8', // Couleur par défaut pour les événements
+                    travelMode: 'NONE',
+                    selectedRouteIndex: 0,
+                    scenarioId: state.activeScenarioId
+                }
+            ]
+        });
+    },
+
+    updateBlockColor: (id, color) => set((state) => ({
+        blocks: state.blocks.map(block =>
+            block.id === id ? { ...block, color } : block
+        )
+    })),
 
     updateBlockTravelMode: (id, mode) => set((state) => ({
         blocks: state.blocks.map(block =>

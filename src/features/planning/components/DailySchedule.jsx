@@ -53,7 +53,7 @@ export default function DailySchedule() {
                 duration: locationDuration,
                 startTime: currentMinutes,
                 endTime: currentMinutes + locationDuration,
-                colors: BLOCK_COLORS.LOCATION
+                colors: { bg: block.color || BLOCK_COLORS.LOCATION.bg, text: '#ffffff' }
             });
             currentMinutes += locationDuration;
 

@@ -16,6 +16,7 @@ export const createSyncSlice = (set, get) => ({
                 blocks: data.blocks || [],
                 scenarios: data.scenarios || [{ id: 'plan_a', name: 'Plan A' }],
                 activeScenarioId: data.scenarios ? data.scenarios[0].id : 'plan_a',
+                startTime: data.startTime || '09:00',
                 isLoading: false
             });
         } else {
@@ -30,7 +31,8 @@ export const createSyncSlice = (set, get) => ({
 
         await saveDatePlan(state.currentDateId, {
             blocks: state.blocks,
-            scenarios: state.scenarios
+            scenarios: state.scenarios,
+            startTime: state.startTime
         });
 
         set({ isSaving: false });

@@ -32,6 +32,14 @@ export function useRouteLogic(activeBlocks) {
             for (let i = 0; i < blocksToProcess.length - 1; i++) {
                 const from = blocksToProcess[i];
                 const to = blocksToProcess[i + 1];
+
+                // SI L'UN DES DEUX N'A PAS DE COORDONNÉES, ON NE CALCULE PAS D'ITINÉRAIRE
+                if (!from.lat || !from.lng || !to.lat || !to.lng) {
+                    newInfos.push({ duration: '0 min', distance: '0 km', summary: '', steps: [], alternatives: [] });
+                    newSegments.push([]);
+                    continue;
+                }
+
                 const mode = to.travelMode || 'DRIVING';
                 const selectedIdx = to.selectedRouteIndex || 0;
 

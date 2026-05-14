@@ -8,6 +8,7 @@ export default function Timeline() {
     const blocks = useDateStore((state) => state.blocks);
     const activeScenarioId = useDateStore((state) => state.activeScenarioId);
     const reorderBlocks = useDateStore((state) => state.reorderBlocks);
+    const addGenericEvent = useDateStore((state) => state.addGenericEvent);
     const travelInfos = useDateStore((state) => state.travelInfos);
     const saveToDb = useDateStore((state) => state.saveToDb);
     const isSaving = useDateStore((state) => state.isSaving);
@@ -32,6 +33,15 @@ export default function Timeline() {
 
             {/* 1. Les onglets des variantes */}
             <ScenarioTabs />
+
+            {/* Bouton d'ajout d'événement rapide */}
+            <button
+                onClick={addGenericEvent}
+                className="mb-3 w-full py-2 px-4 border-2 border-dashed border-gray-200 rounded-xl text-gray-500 font-bold hover:border-blue-400 hover:text-blue-500 hover:bg-blue-50 transition-all flex items-center justify-center gap-2 text-sm"
+            >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                Ajouter un événement (vide)
+            </button>
 
             {/* 2. La liste des lieux (Drag & Drop) */}
             {activeBlocks.length === 0 ? (
