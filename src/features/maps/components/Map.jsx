@@ -95,19 +95,27 @@ export default function Map() {
         }
     };
 
-    // NOUVEAU : Fonction de recherche textuelle large (restaurants, etc.)
-    const handleBroadSearch = useCallback((query) => {
+    // NOUVEAU : Fonction de recherche textuelle large (restaurants, etc.) avec filtres
+    const handleBroadSearch = useCallback((query, filterParams = {}) => {
         if (!mapRef.current || !query.trim()) return;
 
         const service = new window.google.maps.places.PlacesService(mapRef.current);
         const request = {
             query: query,
             bounds: mapRef.current.getBounds(),
+            minPriceLevel: 0, // Optionnel : on pourrait forcer 0
+            maxPriceLevel: filterParams.maxPrice || 4
         };
 
         service.textSearch(request, (results, status) => {
             if (status === window.google.maps.places.PlacesServiceStatus.OK && results) {
-                const formattedResults = results.map(res => ({
+                // FILTRAGE CLIENT (Rating et Avis)
+                const filtered = results.filter(res => 
+                    (res.rating || 0) >= (filterParams.minRating || 0) &&
+                    (res.user_ratings_total || 0) >= (filterParams.minReviews || 0)
+                );
+
+                const formattedResults = filtered.map(res => ({
                     id: res.place_id,
                     placeId: res.place_id,
                     name: res.name,
