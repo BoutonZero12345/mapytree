@@ -31,4 +31,33 @@ export const createScenarioSlice = (set, get) => ({
             blocks: state.blocks.filter(b => b.scenarioId !== id)
         };
     }),
+
+    splitAtBlock: (blockId) => {
+        const state = get();
+        const targetBlock = state.blocks.find(b => b.id === blockId);
+        if (!targetBlock) return;
+
+        const sourceScenarioId = targetBlock.scenarioId;
+        const sourceBlocks = state.blocks
+            .filter(b => b.scenarioId === sourceScenarioId)
+            .sort((a, b) => a.order - b.order);
+
+        const splitIndex = sourceBlocks.findIndex(b => b.id === blockId);
+        const precedingBlocks = sourceBlocks.slice(0, splitIndex);
+
+        const newScenarioId = crypto.randomUUID();
+        const newScenarioName = `Plan sans ${targetBlock.name}`;
+
+        const duplicatedBlocks = precedingBlocks.map(b => ({
+            ...b,
+            id: crypto.randomUUID(),
+            scenarioId: newScenarioId
+        }));
+
+        set((state) => ({
+            scenarios: [...state.scenarios, { id: newScenarioId, name: newScenarioName }],
+            blocks: [...state.blocks, ...duplicatedBlocks],
+            activeScenarioId: newScenarioId
+        }));
+    },
 });

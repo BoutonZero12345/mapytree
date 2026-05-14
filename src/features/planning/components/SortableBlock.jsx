@@ -9,6 +9,7 @@ export default function SortableBlock({ block, index, travelInfo, isLast, nextBl
 
     const updateBlockDetails = useDateStore((state) => state.updateBlockDetails);
     const updateBlockColor = useDateStore((state) => state.updateBlockColor);
+    const splitAtBlock = useDateStore((state) => state.splitAtBlock);
     const deleteBlock = useDateStore((state) => state.deleteBlock);
 
     const [isEditingName, setIsEditingName] = useState(false);
@@ -31,6 +32,14 @@ export default function SortableBlock({ block, index, travelInfo, isLast, nextBl
     const handleSaveName = () => {
         updateBlockDetails(block.id, { name: editName });
         setIsEditingName(false);
+    };
+
+    const handleSplit = (e) => {
+        e.stopPropagation();
+        const confirmMsg = `Créer un nouveau plan à partir d'ici ?\n(Cela copiera tous les éléments PRÉCÉDENTS dans un nouveau scénario nommé "Plan sans ${block.name}")`;
+        if (window.confirm(confirmMsg)) {
+            splitAtBlock(block.id);
+        }
     };
 
     return (
@@ -98,6 +107,9 @@ export default function SortableBlock({ block, index, travelInfo, isLast, nextBl
 
                         <button onClick={(e) => { e.stopPropagation(); setIsEditingName(!isEditingName); }} className="p-1 text-gray-400 hover:text-blue-600 rounded-md transition-colors">
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg>
+                        </button>
+                        <button onClick={handleSplit} className="p-1 text-gray-400 hover:text-amber-600 rounded-md transition-colors" title="Split : Créer un plan alternatif à partir d'ici">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="6" cy="6" r="3"></circle><circle cx="6" cy="18" r="3"></circle><line x1="20" y1="4" x2="8.12" y2="15.88"></line><line x1="14.47" y1="14.48" x2="20" y2="20"></line><line x1="8.12" y1="8.12" x2="12" y2="12"></line></svg>
                         </button>
                         <button onClick={(e) => { e.stopPropagation(); if (window.confirm("Supprimer ?")) deleteBlock(block.id); }} className="p-1 text-gray-400 hover:text-red-600 rounded-md transition-colors">
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
