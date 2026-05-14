@@ -49,7 +49,7 @@ export default function Map() {
             const service = new window.google.maps.places.PlacesService(mapRef.current);
             service.getDetails({
                 placeId: e.placeId,
-                fields: ['name', 'formatted_address', 'geometry', 'place_id']
+                fields: ['name', 'formatted_address', 'geometry', 'place_id', 'rating', 'user_ratings_total']
             }, (place, status) => {
                 if (status === window.google.maps.places.PlacesServiceStatus.OK && place.geometry?.location) {
                     const newPlace = {
@@ -57,7 +57,9 @@ export default function Map() {
                         address: place.formatted_address || '',
                         lat: place.geometry.location.lat(),
                         lng: place.geometry.location.lng(),
-                        placeId: place.place_id
+                        placeId: place.place_id,
+                        rating: place.rating,
+                        userRatingsTotal: place.user_ratings_total
                     };
                     setSelectedPlace(newPlace);
                     setMapCenter({ lat: newPlace.lat, lng: newPlace.lng });
@@ -111,7 +113,9 @@ export default function Map() {
                     name: res.name,
                     address: res.formatted_address,
                     lat: res.geometry.location.lat(),
-                    lng: res.geometry.location.lng()
+                    lng: res.geometry.location.lng(),
+                    rating: res.rating,
+                    userRatingsTotal: res.user_ratings_total
                 }));
                 setSearchResults(formattedResults);
                 
@@ -169,21 +173,38 @@ export default function Map() {
                         <InfoWindowF position={{ lat: selectedPlace.lat, lng: selectedPlace.lng }} onCloseClick={() => setSelectedPlace(null)}>
                             <div className="p-2 text-black flex flex-col gap-2 min-w-[220px]">
                                 <div className="flex justify-between items-start gap-2">
-                                    <p className="font-bold text-lg leading-tight">{selectedPlace.name}</p>
+                                    <div className="flex-1 overflow-hidden">
+                                        <p className="font-bold text-lg leading-tight truncate">{selectedPlace.name}</p>
+                                        
+                                        {/* NOUVEAU : Affichage de la note */}
+                                        {selectedPlace.rating && (
+                                            <div className="flex items-center gap-1.5 mt-0.5">
+                                                <div className="flex items-center text-yellow-500">
+                                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+                                                    <span className="text-xs font-black ml-0.5">{selectedPlace.rating}</span>
+                                                </div>
+                                                <span className="text-[10px] text-gray-400 font-medium">({selectedPlace.userRatingsTotal?.toLocaleString()} avis)</span>
+                                            </div>
+                                        )}
+                                    </div>
+
                                     <button
                                         onClick={() => toggleFavorite(selectedPlace)}
                                         className={`shrink-0 p-1 rounded-full transition-colors`}
                                         style={{ color: isFavorite ? (favoriteCategory?.color || '#eab308') : '#d1d5db' }}
                                         title={isFavorite ? "Retirer des favoris" : "Ajouter aux favoris"}
                                     >
-                                        <svg width="24" height="24" viewBox="0 0 24 24" fill={isFavorite ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+                                        <svg width="22" height="22" viewBox="0 0 24 24" fill={isFavorite ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
                                     </button>
                                 </div>
-                                <p className="text-sm text-gray-600">{selectedPlace.address}</p>
+                                
+                                <p className="text-xs text-gray-500 line-clamp-2">{selectedPlace.address}</p>
+                                
                                 <button
                                     onClick={() => { addBlock(selectedPlace); setSelectedPlace(null); setSearchResults([]); }}
-                                    className="bg-blue-600 text-white px-3 py-2 rounded-md text-sm font-semibold hover:bg-blue-700 mt-1"
+                                    className="bg-blue-600 text-white px-3 py-2 rounded-md text-sm font-semibold hover:bg-blue-700 mt-1 transition-colors flex items-center justify-center gap-2 shadow-sm"
                                 >
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
                                     Ajouter au planning
                                 </button>
                             </div>
