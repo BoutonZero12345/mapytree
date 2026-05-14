@@ -32,6 +32,45 @@ export default function Map() {
 
     const onMapLoad = useCallback((map) => { mapRef.current = map; }, []);
 
+    const handleMapClick = useCallback((e) => {
+        if (!mapRef.current) return;
+
+        if (e.placeId) {
+            e.stop(); // Empêche l'info-bulle native
+            const service = new window.google.maps.places.PlacesService(mapRef.current);
+            service.getDetails({
+                placeId: e.placeId,
+                fields: ['name', 'formatted_address', 'geometry']
+            }, (place, status) => {
+                if (status === window.google.maps.places.PlacesServiceStatus.OK && place.geometry?.location) {
+                    const newPlace = {
+                        name: place.name || 'Lieu sélectionné',
+                        address: place.formatted_address || '',
+                        lat: place.geometry.location.lat(),
+                        lng: place.geometry.location.lng()
+                    };
+                    setSelectedPlace(newPlace);
+                    setMapCenter({ lat: newPlace.lat, lng: newPlace.lng });
+                }
+            });
+        } else {
+            // Clic sur une zone vide (Reverse Geocoding)
+            const geocoder = new window.google.maps.Geocoder();
+            geocoder.geocode({ location: e.latLng }, (results, status) => {
+                if (status === 'OK' && results[0]) {
+                    const newPlace = {
+                        name: results[0].address_components[0]?.long_name || 'Point sur la carte',
+                        address: results[0].formatted_address,
+                        lat: e.latLng.lat(),
+                        lng: e.latLng.lng()
+                    };
+                    setSelectedPlace(newPlace);
+                    setMapCenter({ lat: newPlace.lat, lng: newPlace.lng });
+                }
+            });
+        }
+    }, []);
+
     const handlePlaceSelected = (place) => {
         const newLocation = { lat: place.lat, lng: place.lng };
         setSelectedPlace(place);
@@ -53,6 +92,7 @@ export default function Map() {
                 center={mapCenter}
                 zoom={12}
                 onLoad={onMapLoad}
+                onClick={handleMapClick}
                 options={{ disableDefaultUI: true, zoomControl: true }}
             >
                 {activeBlocks.map((block) => (
