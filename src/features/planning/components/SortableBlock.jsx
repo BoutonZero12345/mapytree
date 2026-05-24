@@ -3,8 +3,9 @@ import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { useDateStore } from '../store/useDateStore';
 import TransportSelector from './TransportSelector';
+import { getCachedPlace } from '../../../services/db';
 
-export default function SortableBlock({ block, index, travelInfo, isLast, nextBlockId, nextBlockMode, nextBlockRouteIndex }) {
+export default function SortableBlock({ block, index, travelInfo, scheduledStartTime, isLast, nextBlockId, nextBlockMode, nextBlockRouteIndex }) {
     const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: block.id });
 
     const updateBlockDetails = useDateStore((state) => state.updateBlockDetails);
@@ -14,8 +15,8 @@ export default function SortableBlock({ block, index, travelInfo, isLast, nextBl
     const favorites = useDateStore((state) => state.favorites);
     const categories = useDateStore((state) => state.categories);
     const toggleFavorite = useDateStore((state) => state.toggleFavorite);
+    const setActivePlaceDetails = useDateStore((state) => state.setActivePlaceDetails); // NOUVEAU
 
-    // NOUVEAU : On gère l'état ouvert/fermé (fermé par défaut)
     const [isExpanded, setIsExpanded] = useState(false);
 
     const isFavorite = favorites.some(f => (f.placeId && f.placeId === block.placeId) || (f.lat === block.lat && f.lng === block.lng));
@@ -39,9 +40,80 @@ export default function SortableBlock({ block, index, travelInfo, isLast, nextBl
         }
     };
 
+    // NOUVEAU : Vérification intelligente des horaires d'ouverture
+    const checkOpeningHours = (openingHours, scheduledTimeStr) => {
+        if (!openingHours || !scheduledTimeStr) return null;
+        
+        const daysFr = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
+        const todayFr = daysFr[new Date().getDay()];
+        
+        const todayLine = openingHours.find(line => line.startsWith(todayFr));
+        if (!todayLine) return null;
+        
+        if (todayLine.includes('Fermé') || todayLine.includes('Closed')) {
+            return { status: 'CLOSED', message: `Fermé le ${todayFr}` };
+        }
+        
+        if (todayLine.includes('24h') || todayLine.includes('24 hours')) {
+            return { status: 'OPEN', message: `Ouvert 24h/24` };
+        }
+        
+        const timeMatch = todayLine.match(/(\d{2}):(\d{2})\s*[–-]\s*(\d{2}):(\d{2})/);
+        if (!timeMatch) return null;
+        
+        const [_, startH, startM, endH, endM] = timeMatch.map(Number);
+        const [schH, schM] = scheduledTimeStr.split(':').map(Number);
+        
+        const startMin = startH * 60 + startM;
+        const endMin = endH * 60 + endM;
+        const schMin = schH * 60 + schM;
+        
+        let isOpen = false;
+        if (endMin < startMin) {
+            isOpen = (schMin >= startMin || schMin <= endMin);
+        } else {
+            isOpen = (schMin >= startMin && schMin <= endMin);
+        }
+        
+        if (isOpen) {
+            const minsRemaining = endMin < startMin ? (schMin >= startMin ? (1440 - schMin + endMin) : (endMin - schMin)) : (endMin - schMin);
+            if (minsRemaining > 0 && minsRemaining <= 30) {
+                return { status: 'CLOSING_SOON', message: `Ferme bientôt (${minsRemaining} min)` };
+            }
+            return { status: 'OPEN', message: `Ouvert à ${scheduledTimeStr}` };
+        } else {
+            return { status: 'CLOSED', message: `Fermé à ${scheduledTimeStr}` };
+        }
+    };
+
+    const hoursStatus = checkOpeningHours(block.openingHours, scheduledStartTime);
+
+    // Ouvre la modal Google Place enrichie
+    const handleShowGoogleDetails = async (e) => {
+        e.stopPropagation();
+        if (!block.placeId) return;
+        const cached = await getCachedPlace(block.placeId);
+        if (cached) {
+            setActivePlaceDetails(cached);
+        } else {
+            setActivePlaceDetails({
+                name: block.name,
+                address: block.address,
+                placeId: block.placeId,
+                rating: block.rating,
+                userRatingsTotal: block.userRatingsTotal,
+                imageUrl: block.imageUrl,
+                priceLevel: block.priceLevel,
+                openingHours: block.openingHours,
+                reviews: block.reviews,
+                photos: block.imageUrl ? [block.imageUrl] : null
+            });
+        }
+    };
+
     return (
         <div ref={setNodeRef} style={style}>
-            <div className={`bg-white border ${isDragging ? 'border-blue-500 shadow-xl' : (block.type === 'EVENT' ? 'border-dashed border-gray-300' : 'border-gray-200')} rounded-xl p-4 shadow-sm flex flex-col gap-2 transition-all`}>
+            <div className={`bg-white border ${isDragging ? 'border-blue-500 shadow-xl' : (block.type === 'EVENT' ? 'border-dashed border-gray-300' : 'border-gray-200')} rounded-xl p-3 md:p-4 shadow-sm flex flex-col gap-2 transition-all`}>
 
                 {/* En-tête (Titre, adresse, actions) */}
                 <div className="flex items-center gap-3">
@@ -51,40 +123,76 @@ export default function SortableBlock({ block, index, travelInfo, isLast, nextBl
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="9" cy="12" r="1"></circle><circle cx="9" cy="5" r="1"></circle><circle cx="9" cy="19" r="1"></circle><circle cx="15" cy="12" r="1"></circle><circle cx="15" cy="5" r="1"></circle><circle cx="15" cy="19" r="1"></circle></svg>
                     </div>
 
-                    {/* Numéro ou Icône */}
-                    <div className={`${block.type === 'EVENT' ? 'bg-gray-100 text-gray-500' : 'bg-blue-100 text-blue-600'} font-bold w-8 h-8 rounded-full flex items-center justify-center shrink-0`}>
-                        {block.type === 'EVENT' ? (
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
-                        ) : (
-                            index + 1
-                        )}
-                    </div>
+                    {/* Miniature Photo Google ou Index */}
+                    {block.type !== 'EVENT' && block.imageUrl ? (
+                        <div className="w-8 h-8 rounded-lg overflow-hidden border border-gray-200 shrink-0">
+                            <img src={block.imageUrl} alt={block.name} className="w-full h-full object-cover" />
+                        </div>
+                    ) : (
+                        <div className={`${block.type === 'EVENT' ? 'bg-gray-100 text-gray-500' : 'bg-blue-100 text-blue-600'} font-bold w-8 h-8 rounded-full flex items-center justify-center shrink-0`}>
+                            {block.type === 'EVENT' ? (
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                            ) : (
+                                index + 1
+                            )}
+                        </div>
+                    )}
 
                     {/* Textes (Cliquables pour ouvrir/fermer) */}
                     <div
-                        className="flex-1 overflow-hidden cursor-pointer group flex items-center gap-2"
+                        className="flex-1 overflow-hidden cursor-pointer group flex flex-col justify-center"
                         onClick={() => setIsExpanded(!isExpanded)}
                     >
-                        <div className="flex-1 overflow-hidden">
-                            <div className="flex items-center gap-2">
-                                <h3 className={`font-bold truncate group-hover:text-blue-600 transition-colors ${block.type === 'EVENT' ? 'text-gray-500 italic' : 'text-gray-800'}`}>
-                                    {block.name}
-                                </h3>
-                                {block.type !== 'EVENT' && isFavorite && (
-                                    <span className="text-yellow-500 shrink-0">
-                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
-                                    </span>
-                                )}
-                            </div>
-                            {block.type !== 'EVENT' && (
-                                <p className="text-xs text-gray-500 truncate">{block.address}</p>
+                        <div className="flex items-center gap-2 flex-wrap">
+                            <h3 className={`font-bold text-sm md:text-base truncate group-hover:text-blue-600 transition-colors ${block.type === 'EVENT' ? 'text-gray-500 italic' : 'text-gray-800'}`}>
+                                {block.name}
+                            </h3>
+                            {block.type !== 'EVENT' && isFavorite && (
+                                <span className="text-yellow-500 shrink-0">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+                                </span>
+                            )}
+                            
+                            {/* Pastille de niveau de prix si disponible */}
+                            {block.priceLevel && (
+                                <span className="text-[10px] font-black text-green-700 bg-green-50 px-1 py-0.2 rounded border border-green-150/30">
+                                    {'€'.repeat(block.priceLevel)}
+                                </span>
                             )}
                         </div>
+                        {block.type !== 'EVENT' && (
+                            <p className="text-xs text-gray-400 truncate mt-0.5">{block.address}</p>
+                        )}
+
+                        {/* Affichage intelligent du statut d'ouverture sous l'adresse */}
+                        {hoursStatus && (
+                            <div className="mt-1">
+                                <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold ${
+                                    hoursStatus.status === 'OPEN' 
+                                        ? 'bg-green-50 text-green-700 border border-green-100' 
+                                        : hoursStatus.status === 'CLOSING_SOON'
+                                        ? 'bg-amber-50 text-amber-700 border border-amber-100'
+                                        : 'bg-red-50 text-red-700 border border-red-100 animate-pulse'
+                                }`}>
+                                    {hoursStatus.status === 'OPEN' ? '🟢' : hoursStatus.status === 'CLOSING_SOON' ? '⚠️' : '❌'} {hoursStatus.message}
+                                </span>
+                            </div>
+                        )}
                     </div>
 
                     {/* Boutons d'action */}
                     <div className="flex gap-1 shrink-0">
-                        {/* Bouton MODIFICATION (Style Favoris) */}
+                        {/* Bouton de consultation Google Places Modal */}
+                        {block.placeId && (
+                            <button
+                                onClick={handleShowGoogleDetails}
+                                className="p-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
+                                title="Voir les photos & avis Google"
+                            >
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+                            </button>
+                        )}
+
                         <button 
                             onClick={(e) => { e.stopPropagation(); setIsExpanded(!isExpanded); }}
                             className={`p-1 rounded-md transition-colors ${isExpanded ? 'bg-blue-600 text-white shadow-sm' : 'text-gray-400 hover:text-blue-600 hover:bg-blue-50'}`}
@@ -102,9 +210,19 @@ export default function SortableBlock({ block, index, travelInfo, isLast, nextBl
                     </div>
                 </div>
 
+                {/* Bannière photo Google si dépliée */}
+                {isExpanded && block.type !== 'EVENT' && block.imageUrl && (
+                    <div className="w-full h-[100px] rounded-xl overflow-hidden shadow-inner border border-gray-200/50 mt-1 relative cursor-pointer group" onClick={handleShowGoogleDetails}>
+                        <img src={block.imageUrl} alt={block.name} className="w-full h-full object-cover" />
+                        <div className="absolute inset-0 bg-slate-900/10 group-hover:bg-slate-900/30 transition-colors flex items-center justify-center">
+                            <span className="text-[10px] text-white font-black uppercase tracking-wider bg-slate-900/60 px-2.5 py-1 rounded-full shadow border border-white/10 opacity-0 group-hover:opacity-100 transition-opacity">Voir galerie et avis</span>
+                        </div>
+                    </div>
+                )}
+
                 {/* Zone de détails (Modification) */}
                 {isExpanded && (
-                    <div className="pl-[3.5rem] flex flex-col gap-3 mt-2 pr-2 animate-in fade-in slide-in-from-top-2 duration-200">
+                    <div className="pl-0 md:pl-[2.5rem] flex flex-col gap-3 mt-2 pr-1 animate-in fade-in slide-in-from-top-2 duration-200">
                         
                         {/* Renommer */}
                         <div className="flex flex-col gap-1">
@@ -118,7 +236,7 @@ export default function SortableBlock({ block, index, travelInfo, isLast, nextBl
                             />
                         </div>
 
-                        <div className="flex flex-wrap items-center gap-3 md:gap-4">
+                        <div className="flex flex-wrap items-center gap-3">
                             <div className="flex flex-col gap-1">
                                 <span className="text-[10px] font-bold text-gray-400 uppercase tracking-tight">Heure fixée</span>
                                 <div className="flex items-center gap-2 bg-gray-50 px-2 py-1 rounded-lg">

@@ -1,5 +1,6 @@
 import { collection, getDocs, setDoc, deleteDoc, doc, updateDoc } from 'firebase/firestore';
 import { db } from '../../../config/firebase';
+import { deleteCachedPlace } from '../../../services/db';
 
 export const createFavoriteSlice = (set, get) => ({
     favorites: [],
@@ -55,6 +56,9 @@ export const createFavoriteSlice = (set, get) => ({
 
         if (existingFav) {
             await deleteDoc(doc(db, 'favorites', existingFav.id));
+            if (existingFav.placeId) {
+                await deleteCachedPlace(existingFav.placeId); // Enlever les images stockées dans le cache
+            }
             set({ favorites: state.favorites.filter(f => f.id !== existingFav.id) });
         } else {
             const favId = crypto.randomUUID();
@@ -69,7 +73,12 @@ export const createFavoriteSlice = (set, get) => ({
                 budget: 0,
                 notes: '',
                 categoryId: null,
-                createdAt: new Date().toISOString()
+                createdAt: new Date().toISOString(),
+                imageUrl: place.imageUrl || null,
+                priceLevel: place.priceLevel || null,
+                openingHours: place.openingHours || null,
+                reviews: place.reviews || null,
+                photos: place.photos || null
             };
             await setDoc(doc(db, 'favorites', favId), newFav);
             set({ favorites: [...state.favorites, newFav] });

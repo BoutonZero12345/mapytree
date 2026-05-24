@@ -4,6 +4,7 @@ import SearchBar from './SearchBar';
 import RouteRenderer from './RouteRenderer';
 import { useRouteLogic } from '../hooks/useRouteLogic';
 import { useDateStore } from '../../planning/store/useDateStore';
+import { getCachedPlace, saveCachedPlace } from '../../../services/db';
 
 const containerStyle = { width: '100%', height: '100%' };
 const defaultCenter = { lat: 48.8566, lng: 2.3522 };
@@ -46,25 +47,49 @@ export default function Map() {
 
         if (e.placeId) {
             e.stop(); // Empêche l'info-bulle native
-            const service = new window.google.maps.places.PlacesService(mapRef.current);
-            service.getDetails({
-                placeId: e.placeId,
-                fields: ['name', 'formatted_address', 'geometry', 'place_id', 'rating', 'user_ratings_total']
-            }, (place, status) => {
-                if (status === window.google.maps.places.PlacesServiceStatus.OK && place.geometry?.location) {
-                    const newPlace = {
-                        name: place.name || 'Lieu sélectionné',
-                        address: place.formatted_address || '',
-                        lat: place.geometry.location.lat(),
-                        lng: place.geometry.location.lng(),
-                        placeId: place.place_id,
-                        rating: place.rating,
-                        userRatingsTotal: place.user_ratings_total
-                    };
-                    setSelectedPlace(newPlace);
-                    setMapCenter({ lat: newPlace.lat, lng: newPlace.lng });
+            
+            const loadDetails = async () => {
+                const cachedData = await getCachedPlace(e.placeId);
+                if (cachedData) {
+                    setSelectedPlace(cachedData);
+                    setMapCenter({ lat: cachedData.lat, lng: cachedData.lng });
+                    return;
                 }
-            });
+
+                const service = new window.google.maps.places.PlacesService(mapRef.current);
+                service.getDetails({
+                    placeId: e.placeId,
+                    fields: ['name', 'formatted_address', 'geometry', 'place_id', 'rating', 'user_ratings_total', 'photos', 'reviews', 'opening_hours', 'price_level']
+                }, async (place, status) => {
+                    if (status === window.google.maps.places.PlacesServiceStatus.OK && place.geometry?.location) {
+                        const newPlace = {
+                            name: place.name || 'Lieu sélectionné',
+                            address: place.formatted_address || '',
+                            lat: place.geometry.location.lat(),
+                            lng: place.geometry.location.lng(),
+                            placeId: place.place_id,
+                            rating: place.rating,
+                            userRatingsTotal: place.user_ratings_total,
+                            imageUrl: place.photos?.[0]?.getUrl({ maxWidth: 650 }) || null,
+                            priceLevel: place.price_level || null,
+                            openingHours: place.opening_hours?.weekday_text || null,
+                            reviews: place.reviews?.map(r => ({
+                                author: r.author_name,
+                                rating: r.rating,
+                                text: r.text,
+                                time: r.relative_time_description,
+                                avatar: r.profile_photo_url
+                            })) || null,
+                            photos: place.photos?.map(p => p.getUrl({ maxWidth: 650 })) || null
+                        };
+                        await saveCachedPlace(place.place_id, newPlace);
+                        setSelectedPlace(newPlace);
+                        setMapCenter({ lat: newPlace.lat, lng: newPlace.lng });
+                    }
+                });
+            };
+
+            loadDetails();
         } else {
             // Clic sur une zone vide (Reverse Geocoding)
             const geocoder = new window.google.maps.Geocoder();
@@ -84,11 +109,55 @@ export default function Map() {
         }
     }, []);
 
-    const handlePlaceSelected = (place) => {
+    const handlePlaceSelected = async (place) => {
         const newLocation = { lat: place.lat, lng: place.lng };
-        setSelectedPlace(place);
-        setMapCenter(newLocation);
         setSearchResults([]); // Nettoyage recherche large
+        
+        if (place.placeId) {
+            const cachedData = await getCachedPlace(place.placeId);
+            if (cachedData) {
+                setSelectedPlace(cachedData);
+            } else if (mapRef.current) {
+                const service = new window.google.maps.places.PlacesService(mapRef.current);
+                service.getDetails({
+                    placeId: place.placeId,
+                    fields: ['name', 'formatted_address', 'geometry', 'place_id', 'rating', 'user_ratings_total', 'photos', 'reviews', 'opening_hours', 'price_level']
+                }, async (details, status) => {
+                    if (status === window.google.maps.places.PlacesServiceStatus.OK && details) {
+                        const richPlace = {
+                            name: details.name || place.name,
+                            address: details.formatted_address || place.address,
+                            lat: details.geometry?.location?.lat() || place.lat,
+                            lng: details.geometry?.location?.lng() || place.lng,
+                            placeId: details.place_id,
+                            rating: details.rating,
+                            userRatingsTotal: details.user_ratings_total,
+                            imageUrl: details.photos?.[0]?.getUrl({ maxWidth: 650 }) || null,
+                            priceLevel: details.price_level || null,
+                            openingHours: details.opening_hours?.weekday_text || null,
+                            reviews: details.reviews?.map(r => ({
+                                author: r.author_name,
+                                rating: r.rating,
+                                text: r.text,
+                                time: r.relative_time_description,
+                                avatar: r.profile_photo_url
+                            })) || null,
+                            photos: details.photos?.map(p => p.getUrl({ maxWidth: 650 })) || null
+                        };
+                        await saveCachedPlace(details.place_id, richPlace);
+                        setSelectedPlace(richPlace);
+                    } else {
+                        setSelectedPlace(place);
+                    }
+                });
+            } else {
+                setSelectedPlace(place);
+            }
+        } else {
+            setSelectedPlace(place);
+        }
+
+        setMapCenter(newLocation);
         if (mapRef.current) {
             mapRef.current.setZoom(15);
             mapRef.current.panTo(newLocation);

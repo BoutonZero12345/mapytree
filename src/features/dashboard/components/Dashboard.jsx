@@ -4,11 +4,13 @@ import { getAllDates, createNewDate, deleteDatePlan, updateDateName } from '../.
 import { useDateStore } from '../../planning/store/useDateStore';
 import CreatePlanForm from './CreatePlanForm';
 import PlanCard from './PlanCard';
+import PlaceDetailsModal from '../../planning/components/PlaceDetailsModal';
 
 export default function Dashboard() {
     const [dates, setDates] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [activeTab, setActiveTab] = useState('plans'); // 'plans' ou 'favorites'
+    const [activeFavDetails, setActiveFavDetails] = useState(null); // NOUVEAU
     const navigate = useNavigate();
 
     // Zustand store pour les favoris
@@ -124,7 +126,7 @@ export default function Dashboard() {
                                     <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
                                 </svg>
                                 <p className="text-gray-500 text-sm">Vous n'avez pas encore de favoris.</p>
-                                <p className="text-xs text-gray-400 mt-1">Ajoutez des lieux de intérêt depuis la carte dans vos plannings pour les retrouver ici !</p>
+                                <p className="text-xs text-gray-400 mt-1">Ajoutez des lieux d'intérêt depuis la carte dans vos plannings pour les retrouver ici !</p>
                             </div>
                         ) : (
                             <div className="grid gap-3 sm:grid-cols-2">
@@ -133,16 +135,22 @@ export default function Dashboard() {
                                     return (
                                         <div
                                             key={fav.id}
-                                            className="bg-white p-4 rounded-2xl border border-gray-200 shadow-sm hover:shadow-md transition-all flex flex-col justify-between relative group overflow-hidden"
+                                            onClick={() => fav.placeId && setActiveFavDetails(fav)}
+                                            className="bg-white p-4 rounded-2xl border border-gray-200 shadow-sm hover:shadow-md hover:scale-[1.01] transition-all flex flex-col justify-between relative group overflow-hidden cursor-pointer"
                                             style={{ borderLeft: `5px solid ${cat?.color || '#e5e7eb'}` }}
                                         >
                                             <div>
                                                 <div className="flex justify-between items-start gap-2">
-                                                    <h3 className="font-extrabold text-gray-800 text-sm md:text-base line-clamp-1">
+                                                    <h3 className="font-extrabold text-gray-800 text-sm md:text-base line-clamp-1 group-hover:text-blue-600 transition-colors">
                                                         {fav.name}
                                                     </h3>
                                                     <button
-                                                        onClick={() => window.confirm(`Supprimer ${fav.name} des favoris ?`) && deleteFavorite(fav.id)}
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            if (window.confirm(`Supprimer ${fav.name} des favoris ?`)) {
+                                                                deleteFavorite(fav.id);
+                                                            }
+                                                        }}
                                                         className="text-gray-300 hover:text-red-500 transition-colors p-1 rounded-full hover:bg-red-50 md:opacity-0 group-hover:opacity-100 shrink-0"
                                                         title="Supprimer le favori"
                                                     >
@@ -185,6 +193,16 @@ export default function Dashboard() {
                     </div>
                 )}
             </div>
+
+            {/* Modal de Détails riches de lieu sur la page d'accueil */}
+            {activeFavDetails && (
+                <PlaceDetailsModal 
+                    place={activeFavDetails} 
+                    onClose={() => setActiveFavDetails(null)} 
+                />
+            )}
         </div>
+    );
+}</div>
     );
 }

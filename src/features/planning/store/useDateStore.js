@@ -9,4 +9,8 @@ export const useDateStore = create((set, get) => ({
     ...createBlockSlice(set, get),
     ...createSyncSlice(set, get),
     ...createFavoriteSlice(set, get),
+
+    // NOUVEAU : Modal de détails de lieu Google Maps (Photos riches, Avis)
+    activePlaceDetails: null,
+    setActivePlaceDetails: (place) => set({ activePlaceDetails: place }),
 }));

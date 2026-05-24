@@ -4,6 +4,7 @@ import { useDateStore } from '../store/useDateStore';
 import Map from '../../maps/components/Map';
 import Timeline from './Timeline';
 import DailySchedule from './DailySchedule';
+import PlaceDetailsModal from './PlaceDetailsModal';
 
 export default function PlanningLayout() {
     const { id } = useParams();
@@ -11,6 +12,10 @@ export default function PlanningLayout() {
     const loadFromDb = useDateStore((state) => state.loadFromDb);
     const loadFavorites = useDateStore((state) => state.loadFavorites);
     const currentDateName = useDateStore((state) => state.currentDateName);
+
+    // Modal de détails riches de lieu
+    const activePlaceDetails = useDateStore((state) => state.activePlaceDetails);
+    const setActivePlaceDetails = useDateStore((state) => state.setActivePlaceDetails);
 
     // États pour le tiroir mobile
     const [drawerHeight, setDrawerHeight] = useState('half'); // 'collapsed', 'half', 'expanded'
@@ -128,6 +133,14 @@ export default function PlanningLayout() {
                     )}
                 </div>
             </div>
+
+            {/* 5. MODAL DE DÉTAILS RICHES (Photos style Google Images, Avis, Horaires) */}
+            {activePlaceDetails && (
+                <PlaceDetailsModal 
+                    place={activePlaceDetails} 
+                    onClose={() => setActivePlaceDetails(null)} 
+                />
+            )}
 
         </div>
     );

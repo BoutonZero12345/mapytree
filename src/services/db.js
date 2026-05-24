@@ -66,3 +66,26 @@ export const saveCachedRoute = async (routeKey, routeData) => {
     try { await setDoc(doc(db, 'routes_cache', routeKey), routeData); }
     catch (error) { console.error(error); }
 };
+
+// --- CACHE DES LIEUX (IMAGES, HORAIRES, PRIX, REVIEWS) ---
+export const getCachedPlace = async (placeId) => {
+    try {
+        const docSnap = await getDoc(doc(db, 'places_cache', placeId));
+        return docSnap.exists() ? docSnap.data() : null;
+    } catch (error) { return null; }
+};
+
+export const saveCachedPlace = async (placeId, placeData) => {
+    try {
+        await setDoc(doc(db, 'places_cache', placeId), {
+            ...placeData,
+            cachedAt: new Date().toISOString()
+        });
+    } catch (error) { console.error(error); }
+};
+
+export const deleteCachedPlace = async (placeId) => {
+    try {
+        await deleteDoc(doc(db, 'places_cache', placeId));
+    } catch (error) { console.error(error); }
+};

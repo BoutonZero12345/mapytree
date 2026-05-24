@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useDateStore } from '../store/useDateStore';
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from '@dnd-kit/sortable';
@@ -20,6 +20,7 @@ export default function Timeline() {
     const saveToDb = useDateStore((state) => state.saveToDb);
     const isSaving = useDateStore((state) => state.isSaving);
     const reorderBlocks = useDateStore((state) => state.reorderBlocks); // Fix: import reorderBlocks
+    const startTime = useDateStore((state) => state.startTime); // NOUVEAU: destructure startTime
 
     const [activeTab, setActiveTab] = useState('plan'); // 'plan' ou 'favorites'
     const [editingFavId, setEditingFavId] = useState(null);
@@ -39,6 +40,35 @@ export default function Timeline() {
         if (minsMatch) totalMinutes += parseInt(minsMatch[1], 10);
         return totalMinutes;
     };
+
+    // NOUVEAU: Calcule l'horaire de passage de chaque bloc
+    const activeBlocksWithTimes = useMemo(() => {
+        const [startH, startM] = startTime.split(':').map(Number);
+        let currentMinutes = startH * 60 + startM;
+        
+        return activeBlocks.map((block, index) => {
+            if (block.fixedStartTime) {
+                const [fH, fM] = block.fixedStartTime.split(':').map(Number);
+                currentMinutes = fH * 60 + fM;
+            }
+            
+            const timeStr = `${Math.floor(currentMinutes / 60) % 24}:${(currentMinutes % 60).toString().padStart(2, '0')}`;
+            
+            // Avancement pour le prochain bloc
+            const locationDuration = Number(block.durationMinutes) || 0;
+            currentMinutes += locationDuration;
+            
+            if (index < activeBlocks.length - 1 && travelInfos[index]) {
+                const travelMinutes = parseTravelTime(travelInfos[index].duration);
+                currentMinutes += travelMinutes;
+            }
+            
+            return {
+                ...block,
+                scheduledStartTime: timeStr
+            };
+        });
+    }, [activeBlocks, travelInfos, startTime]);
 
     const totalDurationMinutes = activeBlocks.reduce((sum, block, index) => {
         let blockMins = Number(block.durationMinutes) || 0;
@@ -127,12 +157,13 @@ export default function Timeline() {
                         <div className="flex-1 overflow-y-auto flex flex-col gap-2 pb-4 no-scrollbar">
                             <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
                                 <SortableContext items={activeBlocks.map(b => b.id)} strategy={verticalListSortingStrategy}>
-                                    {activeBlocks.map((block, index) => (
+                                    {activeBlocksWithTimes.map((block, index) => (
                                         <SortableBlock
                                             key={block.id}
                                             block={block}
                                             index={index}
                                             travelInfo={travelInfos[index]}
+                                            scheduledStartTime={block.scheduledStartTime}
                                             isLast={index === activeBlocks.length - 1}
                                             nextBlockId={activeBlocks[index + 1]?.id}
                                             nextBlockMode={activeBlocks[index + 1]?.travelMode || 'DRIVING'}
