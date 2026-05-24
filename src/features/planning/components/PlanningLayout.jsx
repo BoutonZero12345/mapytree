@@ -4,7 +4,7 @@ import { useDateStore } from '../store/useDateStore';
 import Map from '../../maps/components/Map';
 import Timeline from './Timeline';
 import DailySchedule from './DailySchedule';
-import PlaceDetailsModal from './PlaceDetailsModal';
+import PlaceDetailsPanel from './PlaceDetailsPanel';
 
 export default function PlanningLayout() {
     const { id } = useParams();
@@ -13,7 +13,7 @@ export default function PlanningLayout() {
     const loadFavorites = useDateStore((state) => state.loadFavorites);
     const currentDateName = useDateStore((state) => state.currentDateName);
 
-    // Modal de détails riches de lieu
+    // Fiche de détails riches de lieu
     const activePlaceDetails = useDateStore((state) => state.activePlaceDetails);
     const setActivePlaceDetails = useDateStore((state) => state.setActivePlaceDetails);
 
@@ -29,6 +29,16 @@ export default function PlanningLayout() {
             loadFavorites();
         }
     }, [id, loadFromDb, loadFavorites]);
+
+    // Sur mobile, ouvre le tiroir d'informations du lieu dès qu'il est sélectionné
+    useEffect(() => {
+        if (activePlaceDetails) {
+            setMobileTab('place');
+            if (drawerHeight === 'collapsed') {
+                setDrawerHeight('half');
+            }
+        }
+    }, [activePlaceDetails]);
 
     const toggleDrawerHeight = () => {
         if (drawerHeight === 'collapsed') setDrawerHeight('half');
@@ -59,6 +69,11 @@ export default function PlanningLayout() {
             {/* 2. Zone Carte (Prend 100% de l'écran sur mobile, flex-1 sur desktop) */}
             <div className="w-full h-full lg:flex-1 relative z-0 order-1">
                 <Map />
+            </div>
+
+            {/* 2.5. Panneau de Détails de Lieu (À gauche du Déroulé sur desktop) */}
+            <div className="hidden lg:flex h-full z-10 order-2">
+                <PlaceDetailsPanel />
             </div>
 
             {/* 3. Calendrier/Déroulé (Visible à droite sur desktop seulement) */}
@@ -94,19 +109,27 @@ export default function PlanningLayout() {
                     </div>
 
                     {/* Onglets tactiles du tiroir */}
-                    <div className="flex bg-gray-100 p-0.5 rounded-xl text-[10px] font-extrabold shadow-inner border border-gray-200/30">
+                    <div className="flex bg-gray-100 p-0.5 rounded-xl text-[10px] font-extrabold shadow-inner border border-gray-200/30 overflow-x-auto no-scrollbar max-w-[70vw] md:max-w-none">
                         <button
                             onClick={() => { setMobileTab('timeline'); if (drawerHeight === 'collapsed') setDrawerHeight('half'); }}
-                            className={`px-3 py-1.5 rounded-lg transition-all ${mobileTab === 'timeline' ? 'bg-white text-blue-600 shadow-sm font-black' : 'text-gray-500'}`}
+                            className={`px-2.5 py-1.5 rounded-lg transition-all whitespace-nowrap ${mobileTab === 'timeline' ? 'bg-white text-blue-600 shadow-sm font-black' : 'text-gray-500'}`}
                         >
                             Édition / Favoris
                         </button>
                         <button
                             onClick={() => { setMobileTab('schedule'); if (drawerHeight === 'collapsed') setDrawerHeight('half'); }}
-                            className={`px-3 py-1.5 rounded-lg transition-all ${mobileTab === 'schedule' ? 'bg-white text-blue-600 shadow-sm font-black' : 'text-gray-500'}`}
+                            className={`px-2.5 py-1.5 rounded-lg transition-all whitespace-nowrap ${mobileTab === 'schedule' ? 'bg-white text-blue-600 shadow-sm font-black' : 'text-gray-500'}`}
                         >
                             Déroulé (Planning)
                         </button>
+                        {activePlaceDetails && (
+                            <button
+                                onClick={() => { setMobileTab('place'); if (drawerHeight === 'collapsed') setDrawerHeight('half'); }}
+                                className={`px-2.5 py-1.5 rounded-lg transition-all whitespace-nowrap animate-in fade-in duration-200 ${mobileTab === 'place' ? 'bg-white text-blue-600 shadow-sm font-black' : 'text-gray-500'}`}
+                            >
+                                Infos Lieu
+                            </button>
+                        )}
                     </div>
 
                     {/* Actions de hauteur rapides */}
@@ -128,19 +151,15 @@ export default function PlanningLayout() {
                 <div className={`flex-1 overflow-hidden p-3 bg-white ${drawerHeight === 'collapsed' ? 'hidden' : 'block'}`}>
                     {mobileTab === 'timeline' ? (
                         <Timeline />
-                    ) : (
+                    ) : mobileTab === 'schedule' ? (
                         <DailySchedule isMobile={true} />
+                    ) : (
+                        <PlaceDetailsPanel isMobile={true} />
                     )}
                 </div>
             </div>
 
-            {/* 5. MODAL DE DÉTAILS RICHES (Photos style Google Images, Avis, Horaires) */}
-            {activePlaceDetails && (
-                <PlaceDetailsModal 
-                    place={activePlaceDetails} 
-                    onClose={() => setActivePlaceDetails(null)} 
-                />
-            )}
+            {/* Rendu des volets et panneau latéral directement intégrés */}
 
         </div>
     );

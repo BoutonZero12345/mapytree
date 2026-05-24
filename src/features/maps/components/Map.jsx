@@ -23,6 +23,7 @@ export default function Map() {
     const categories = useDateStore((state) => state.categories || []);
     const toggleFavorite = useDateStore((state) => state.toggleFavorite);
     const loadFavorites = useDateStore((state) => state.loadFavorites);
+    const setActivePlaceDetails = useDateStore((state) => state.setActivePlaceDetails);
 
     const activeBlocks = blocks.filter(b => b.scenarioId === activeScenarioId);
 
@@ -53,6 +54,7 @@ export default function Map() {
                 if (cachedData) {
                     setSelectedPlace(cachedData);
                     setMapCenter({ lat: cachedData.lat, lng: cachedData.lng });
+                    setActivePlaceDetails(cachedData); // Rempli le volet latéral
                     return;
                 }
 
@@ -73,18 +75,19 @@ export default function Map() {
                             imageUrl: place.photos?.[0]?.getUrl({ maxWidth: 650 }) || null,
                             priceLevel: place.price_level || null,
                             openingHours: place.opening_hours?.weekday_text || null,
-                            reviews: place.reviews?.map(r => ({
+                            reviews: place.reviews?.slice(0, 100).map(r => ({
                                 author: r.author_name,
                                 rating: r.rating,
                                 text: r.text,
                                 time: r.relative_time_description,
                                 avatar: r.profile_photo_url
                             })) || null,
-                            photos: place.photos?.map(p => p.getUrl({ maxWidth: 650 })) || null
+                            photos: place.photos?.slice(0, 30).map(p => p.getUrl({ maxWidth: 650 })) || null
                         };
                         await saveCachedPlace(place.place_id, newPlace);
                         setSelectedPlace(newPlace);
                         setMapCenter({ lat: newPlace.lat, lng: newPlace.lng });
+                        setActivePlaceDetails(newPlace); // Rempli le volet latéral
                     }
                 });
             };
@@ -107,7 +110,7 @@ export default function Map() {
                 }
             });
         }
-    }, []);
+    }, [setActivePlaceDetails]);
 
     const handlePlaceSelected = async (place) => {
         const newLocation = { lat: place.lat, lng: place.lng };
@@ -117,6 +120,7 @@ export default function Map() {
             const cachedData = await getCachedPlace(place.placeId);
             if (cachedData) {
                 setSelectedPlace(cachedData);
+                setActivePlaceDetails(cachedData); // Rempli le volet latéral
             } else if (mapRef.current) {
                 const service = new window.google.maps.places.PlacesService(mapRef.current);
                 service.getDetails({
@@ -135,26 +139,30 @@ export default function Map() {
                             imageUrl: details.photos?.[0]?.getUrl({ maxWidth: 650 }) || null,
                             priceLevel: details.price_level || null,
                             openingHours: details.opening_hours?.weekday_text || null,
-                            reviews: details.reviews?.map(r => ({
+                            reviews: details.reviews?.slice(0, 100).map(r => ({
                                 author: r.author_name,
                                 rating: r.rating,
                                 text: r.text,
                                 time: r.relative_time_description,
                                 avatar: r.profile_photo_url
                             })) || null,
-                            photos: details.photos?.map(p => p.getUrl({ maxWidth: 650 })) || null
+                            photos: details.photos?.slice(0, 30).map(p => p.getUrl({ maxWidth: 650 })) || null
                         };
                         await saveCachedPlace(details.place_id, richPlace);
                         setSelectedPlace(richPlace);
+                        setActivePlaceDetails(richPlace); // Rempli le volet latéral
                     } else {
                         setSelectedPlace(place);
+                        setActivePlaceDetails(place); // Rempli le volet latéral
                     }
                 });
             } else {
                 setSelectedPlace(place);
+                setActivePlaceDetails(place); // Rempli le volet latéral
             }
         } else {
             setSelectedPlace(place);
+            setActivePlaceDetails(place); // Rempli le volet latéral
         }
 
         setMapCenter(newLocation);
@@ -227,9 +235,32 @@ export default function Map() {
                 onClick={handleMapClick}
                 options={{ disableDefaultUI: true, zoomControl: true }}
             >
-                {/* Marqueurs du planning */}
+                {/* Marqueurs du planning avec click handler rich details */}
                 {activeBlocks.map((block) => (
-                    <MarkerF key={block.id} position={{ lat: block.lat, lng: block.lng }} />
+                    <MarkerF 
+                        key={block.id} 
+                        position={{ lat: block.lat, lng: block.lng }}
+                        onClick={async () => {
+                            if (!block.placeId) return;
+                            const cached = await getCachedPlace(block.placeId);
+                            if (cached) {
+                                setActivePlaceDetails(cached);
+                            } else {
+                                setActivePlaceDetails({
+                                    name: block.name,
+                                    address: block.address,
+                                    placeId: block.placeId,
+                                    rating: block.rating,
+                                    userRatingsTotal: block.userRatingsTotal,
+                                    imageUrl: block.imageUrl,
+                                    priceLevel: block.priceLevel,
+                                    openingHours: block.openingHours,
+                                    reviews: block.reviews,
+                                    photos: block.imageUrl ? [block.imageUrl] : null
+                                });
+                            }
+                        }}
+                    />
                 ))}
 
                 {/* NOUVEAU : Marqueurs de résultats de recherche (Orange) */}
@@ -238,7 +269,46 @@ export default function Map() {
                         key={res.id} 
                         position={{ lat: res.lat, lng: res.lng }}
                         icon="http://maps.google.com/mapfiles/ms/icons/orange-dot.png"
-                        onClick={() => setSelectedPlace(res)}
+                        onClick={async () => {
+                            setSelectedPlace(res);
+                            if (res.placeId) {
+                                const cached = await getCachedPlace(res.placeId);
+                                if (cached) {
+                                    setActivePlaceDetails(cached);
+                                } else if (mapRef.current) {
+                                    const service = new window.google.maps.places.PlacesService(mapRef.current);
+                                    service.getDetails({
+                                        placeId: res.placeId,
+                                        fields: ['name', 'formatted_address', 'geometry', 'place_id', 'rating', 'user_ratings_total', 'photos', 'reviews', 'opening_hours', 'price_level']
+                                    }, async (details, status) => {
+                                        if (status === window.google.maps.places.PlacesServiceStatus.OK && details) {
+                                            const richPlace = {
+                                                name: details.name || res.name,
+                                                address: details.formatted_address || res.address,
+                                                lat: details.geometry?.location?.lat() || res.lat,
+                                                lng: details.geometry?.location?.lng() || res.lng,
+                                                placeId: details.place_id,
+                                                rating: details.rating,
+                                                userRatingsTotal: details.user_ratings_total,
+                                                imageUrl: details.photos?.[0]?.getUrl({ maxWidth: 650 }) || null,
+                                                priceLevel: details.price_level || null,
+                                                openingHours: details.opening_hours?.weekday_text || null,
+                                                reviews: details.reviews?.slice(0, 100).map(r => ({
+                                                    author: r.author_name,
+                                                    rating: r.rating,
+                                                    text: r.text,
+                                                    time: r.relative_time_description,
+                                                    avatar: r.profile_photo_url
+                                                })) || null,
+                                                photos: details.photos?.slice(0, 30).map(p => p.getUrl({ maxWidth: 650 })) || null
+                                            };
+                                            await saveCachedPlace(details.place_id, richPlace);
+                                            setActivePlaceDetails(richPlace);
+                                        }
+                                    });
+                                }
+                            }
+                        }}
                     />
                 ))}
 
