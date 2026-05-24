@@ -76,44 +76,12 @@ export default function SearchBar({ onPlaceSelected, onSearchRequested, onClearS
         }
     };
 
-    const priceOptions = [
-        { value: 0, label: "Tous", level: 0 },
-        { value: 10, label: "10€", level: 1 },
-        { value: 20, label: "20€", level: 1 },
-        { value: 30, label: "30€", level: 2 },
-        { value: 50, label: "50€", level: 2 },
-        { value: 70, label: "70€", level: 3 },
-        { value: 100, label: "100€", level: 3 },
-        { value: 120, label: "120€", level: 4 },
-        { value: 150, label: "150€", level: 4 },
-        { value: 200, label: "200€", level: 4 },
-        { value: 250, label: "250€", level: 4 },
-        { value: 300, label: "300€", level: 4 }
-    ];
-
-    const handleMinPriceChange = (e) => {
-        const val = parseInt(e.target.value);
-        if (val === 0) {
-            setFilters(prev => ({ ...prev, minPrice: 0, maxPrice: 0 }));
-        } else {
-            setFilters(prev => ({
-                ...prev,
-                minPrice: val,
-                maxPrice: (prev.maxPrice !== 0 && prev.maxPrice < val) ? val : prev.maxPrice
-            }));
-        }
-    };
-
-    const handleMaxPriceChange = (e) => {
-        const val = parseInt(e.target.value);
-        if (val === 0) {
-            setFilters(prev => ({ ...prev, maxPrice: 0 }));
-        } else {
-            setFilters(prev => ({
-                ...prev,
-                maxPrice: Math.max(val, prev.minPrice)
-            }));
-        }
+    const handlePriceSelect = (level) => {
+        setFilters(prev => ({
+            ...prev,
+            minPrice: 0,
+            maxPrice: level
+        }));
     };
 
     return (
@@ -197,9 +165,9 @@ export default function SearchBar({ onPlaceSelected, onSearchRequested, onClearS
                     {searchTerm && (
                         <button 
                             onClick={() => {
-                                setSearchTerm('');
-                                onClearSearch();
-                            }}
+                                    setSearchTerm('');
+                                    onClearSearch();
+                                }}
                             className="pr-4 pl-1 text-gray-400 hover:text-gray-600 transition-colors"
                             title="Effacer la recherche"
                         >
@@ -262,34 +230,33 @@ export default function SearchBar({ onPlaceSelected, onSearchRequested, onClearS
                             </select>
                         </div>
 
-                        {/* Prix Range Granulaire */}
+                        {/* NOUVEAU : Pastilles de Budget / Prix Maximum */}
                         <div className="flex flex-col gap-2">
-                            <label className="text-[10px] font-black uppercase text-gray-400 tracking-wider">Budget indicatif</label>
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label className="text-[9px] font-bold text-gray-400 ml-1">Min</label>
-                                    <select 
-                                        value={filters.minPrice}
-                                        onChange={handleMinPriceChange}
-                                        className="w-full bg-gray-50 border border-gray-200 rounded-lg px-2 py-1.5 text-[11px] font-black outline-none"
-                                    >
-                                        {priceOptions.map(opt => (
-                                            <option key={opt.value} value={opt.value}>{opt.label}</option>
-                                        ))}
-                                    </select>
-                                </div>
-                                <div>
-                                    <label className="text-[9px] font-bold text-gray-400 ml-1">Max</label>
-                                    <select 
-                                        value={filters.maxPrice}
-                                        onChange={handleMaxPriceChange}
-                                        className="w-full bg-gray-50 border border-gray-200 rounded-lg px-2 py-1.5 text-[11px] font-black outline-none"
-                                    >
-                                        {priceOptions.map(opt => (
-                                            <option key={opt.value} value={opt.value}>{opt.label}</option>
-                                        ))}
-                                    </select>
-                                </div>
+                            <div className="flex justify-between items-center">
+                                <label className="text-[10px] font-black uppercase text-gray-400 tracking-wider">Budget maximum</label>
+                                <span className="text-xs font-black text-green-600 bg-green-50 px-2 py-0.5 rounded-full border border-green-100">
+                                    {filters.maxPrice === 4 ? 'Tous budgets' : '€'.repeat(filters.maxPrice)}
+                                </span>
+                            </div>
+                            <div className="flex gap-2">
+                                {[1, 2, 3, 4].map(level => {
+                                    const label = '€'.repeat(level);
+                                    const isActive = filters.maxPrice === level;
+                                    return (
+                                        <button
+                                            key={level}
+                                            type="button"
+                                            onClick={() => handlePriceSelect(level)}
+                                            className={`flex-1 py-2.5 rounded-xl text-xs font-black transition-all border ${
+                                                isActive
+                                                    ? 'bg-blue-600 border-blue-600 text-white shadow-sm'
+                                                    : 'bg-gray-50 border-gray-200 text-gray-600 hover:bg-gray-100'
+                                            }`}
+                                        >
+                                            {label}
+                                        </button>
+                                    );
+                                })}
                             </div>
                         </div>
                     </div>

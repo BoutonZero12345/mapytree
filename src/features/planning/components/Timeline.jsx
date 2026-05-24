@@ -19,14 +19,44 @@ export default function Timeline() {
     const travelInfos = useDateStore((state) => state.travelInfos);
     const saveToDb = useDateStore((state) => state.saveToDb);
     const isSaving = useDateStore((state) => state.isSaving);
+    const reorderBlocks = useDateStore((state) => state.reorderBlocks); // Fix: import reorderBlocks
 
     const [activeTab, setActiveTab] = useState('plan'); // 'plan' ou 'favorites'
     const [editingFavId, setEditingFavId] = useState(null);
     const [newCategoryName, setNewCategoryName] = useState('');
     const [isAddingCategory, setIsAddingCategory] = useState(false);
+    const [isFooterCollapsed, setIsFooterCollapsed] = useState(true); // Gère l'état compact du budget
 
     const activeBlocks = blocks.filter(b => b.scenarioId === activeScenarioId);
     const totalBudget = activeBlocks.reduce((sum, block) => sum + (Number(block.budget) || 0), 0);
+
+    const parseTravelTime = (durationText) => {
+        if (!durationText) return 0;
+        let totalMinutes = 0;
+        const hoursMatch = durationText.match(/(\d+)\s*(h|heure|hour)/i);
+        const minsMatch = durationText.match(/(\d+)\s*(m|min)/i);
+        if (hoursMatch) totalMinutes += parseInt(hoursMatch[1], 10) * 60;
+        if (minsMatch) totalMinutes += parseInt(minsMatch[1], 10);
+        return totalMinutes;
+    };
+
+    const totalDurationMinutes = activeBlocks.reduce((sum, block, index) => {
+        let blockMins = Number(block.durationMinutes) || 0;
+        let travelMins = 0;
+        if (index < activeBlocks.length - 1 && travelInfos[index]) {
+            travelMins = parseTravelTime(travelInfos[index].duration);
+        }
+        return sum + blockMins + travelMins;
+    }, 0);
+
+    const formatDuration = (totalMins) => {
+        const h = Math.floor(totalMins / 60);
+        const m = totalMins % 60;
+        if (h > 0) {
+            return `${h}h${m > 0 ? ` ${m}m` : ''}`;
+        }
+        return `${m} min`;
+    };
 
     const sensors = useSensors(
         useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -50,43 +80,48 @@ export default function Timeline() {
     };
 
     return (
-        <div className="flex flex-col h-full">
+        <div className="flex flex-col h-full bg-white">
 
             {/* 1. Les onglets des variantes */}
             <ScenarioTabs />
 
-            {/* Switcher Plan / Favoris */}
-            <div className="flex bg-gray-100 p-1 rounded-xl mb-3 items-center">
-                <button
-                    onClick={() => setActiveTab('plan')}
-                    className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all ${activeTab === 'plan' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
-                >
-                    Mon Plan
-                </button>
-                <button
-                    onClick={() => setActiveTab('favorites')}
-                    className={`p-1.5 rounded-lg transition-all flex items-center justify-center ${activeTab === 'favorites' ? 'bg-white text-yellow-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
-                >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
-                </button>
+            {/* Switcher Plan / Favoris & Bouton "+" épuré */}
+            <div className="flex gap-2 mb-3 items-center shrink-0">
+                <div className="flex flex-1 bg-gray-100 p-1 rounded-xl items-center shadow-inner">
+                    <button
+                        onClick={() => setActiveTab('plan')}
+                        className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all ${activeTab === 'plan' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                    >
+                        Mon Plan
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('favorites')}
+                        className={`p-1.5 rounded-lg transition-all flex items-center justify-center ${activeTab === 'favorites' ? 'bg-white text-yellow-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                    >
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+                    </button>
+                </div>
+                {activeTab === 'plan' && (
+                    <button
+                        onClick={addGenericEvent}
+                        className="p-1.5 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-xl transition-all font-bold flex items-center justify-center border border-blue-100 hover:scale-105 shrink-0 shadow-sm"
+                        title="Ajouter un événement vide"
+                    >
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                            <line x1="12" y1="5" x2="12" y2="19"></line>
+                            <line x1="5" y1="12" x2="19" y2="12"></line>
+                        </svg>
+                    </button>
+                )}
             </div>
 
             {activeTab === 'plan' ? (
                 <>
-                    {/* Bouton d'ajout d'événement rapide */}
-                    <button
-                        onClick={addGenericEvent}
-                        className="mb-3 w-full py-2 px-4 border-2 border-dashed border-gray-200 rounded-xl text-gray-500 font-bold hover:border-blue-400 hover:text-blue-500 hover:bg-blue-50 transition-all flex items-center justify-center gap-2 text-sm"
-                    >
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
-                        Ajouter un événement (vide)
-                    </button>
-
                     {/* 2. La liste des lieux (Drag & Drop) */}
                     {activeBlocks.length === 0 ? (
-                        <div className="flex-1 flex flex-col items-center justify-center text-gray-400 text-center space-y-4">
-                            <p className="text-lg">Ce scénario est vide.</p>
-                            <p className="text-sm">Ajoute des lieux via la carte ou tes favoris.</p>
+                        <div className="flex-1 flex flex-col items-center justify-center text-gray-400 text-center space-y-4 p-4">
+                            <p className="text-base font-semibold">Ce scénario est vide.</p>
+                            <p className="text-xs text-gray-400">Ajoute des lieux via la carte ou tes favoris en cliquant sur le bouton '+' ou en recherchant.</p>
                         </div>
                     ) : (
                         <div className="flex-1 overflow-y-auto flex flex-col gap-2 pb-4 no-scrollbar">
@@ -178,7 +213,7 @@ export default function Timeline() {
                                         <div className="flex items-center gap-3">
                                             <div 
                                                 className="flex-1 overflow-hidden cursor-pointer"
-                                                onClick={() => { if(!isEditing) { addBlock(fav); setActiveTab('plan'); } }}
+                                                onClick={() => { if(!isEditing) { addBlock(fav); } }}
                                             >
                                                 <p className="font-bold text-gray-800 text-sm truncate">{fav.name}</p>
                                                 <p className="text-xs text-gray-500 truncate">{fav.address}</p>
@@ -260,23 +295,58 @@ export default function Timeline() {
                 </div>
             )}
 
-            {/* 3. Le Footer (Budget et Sauvegarde) */}
-            <div className="pt-4 border-t mt-auto flex flex-col gap-3 shrink-0 bg-white">
+            {/* 3. Le Footer Rétractable & Optimisé */}
+            <div className="pt-2 border-t mt-auto flex flex-col gap-2 shrink-0 bg-white md:p-3">
                 {activeBlocks.length > 0 && (
-                    <div className="flex justify-between items-center px-2">
-                        <span className="font-bold text-gray-600">Budget total estimé :</span>
-                        <span className="font-extrabold text-lg text-blue-600">{totalBudget} €</span>
+                    <div className="px-1 transition-all duration-300">
+                        {isFooterCollapsed ? (
+                            <div 
+                                onClick={() => setIsFooterCollapsed(false)}
+                                className="flex justify-between items-center py-1.5 px-3 bg-gray-50 hover:bg-gray-100/80 rounded-xl cursor-pointer border border-gray-150/50 shadow-sm transition-all"
+                            >
+                                <div className="flex items-center gap-4 text-xs font-bold text-gray-500">
+                                    <span className="flex items-center gap-1">⏱️ <strong className="text-gray-800 font-extrabold">{formatDuration(totalDurationMinutes)}</strong></span>
+                                    <span className="text-gray-300">|</span>
+                                    <span className="flex items-center gap-1">💶 <strong className="text-gray-850 font-extrabold">{totalBudget} €</strong></span>
+                                </div>
+                                <span className="text-[10px] text-blue-600 font-extrabold hover:underline flex items-center gap-0.5">
+                                    Détails
+                                    <svg className="w-2.5 h-2.5 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                                </span>
+                            </div>
+                        ) : (
+                            <div 
+                                onClick={() => setIsFooterCollapsed(true)}
+                                className="flex flex-col gap-2 p-3 bg-gray-50 hover:bg-gray-100/50 rounded-xl cursor-pointer border border-gray-200 transition-all shadow-sm"
+                            >
+                                <div className="flex justify-between items-center border-b pb-1.5 mb-1">
+                                    <span className="text-[9px] font-black uppercase text-gray-400 tracking-wider">Résumé de la journée</span>
+                                    <span className="text-[9px] text-gray-400 font-bold flex items-center gap-0.5">
+                                        Réduire
+                                        <svg className="w-2.5 h-2.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="18 15 12 9 6 15"></polyline></svg>
+                                    </span>
+                                </div>
+                                <div className="flex justify-between items-center text-xs">
+                                    <span className="text-gray-500 font-medium">Durée totale cumulée :</span>
+                                    <span className="font-extrabold text-gray-800">{formatDuration(totalDurationMinutes)}</span>
+                                </div>
+                                <div className="flex justify-between items-center text-xs">
+                                    <span className="text-gray-500 font-medium">Budget total estimé :</span>
+                                    <span className="font-extrabold text-blue-600">{totalBudget} €</span>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 )}
                 <button
                     onClick={saveToDb}
                     disabled={isSaving || activeBlocks.length === 0}
-                    className="w-full bg-blue-600 text-white py-3 rounded-xl font-bold hover:bg-blue-700 disabled:opacity-50 transition-colors"
+                    className="w-full bg-blue-600 text-white py-2.5 md:py-3 rounded-xl font-bold hover:bg-blue-700 disabled:opacity-50 transition-colors shadow-sm text-sm"
                 >
-                    {isSaving ? 'Sauvegarde en cours...' : 'Sauvegarder le projet'}
+                    {isSaving ? 'Sauvegarde...' : 'Sauvegarder le projet'}
                 </button>
             </div>
 
         </div>
     );
-}
+}

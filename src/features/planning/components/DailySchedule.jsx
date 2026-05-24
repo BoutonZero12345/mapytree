@@ -9,7 +9,7 @@ const BLOCK_COLORS = {
     BICYCLING: { bg: '#f59e0b', text: '#ffffff' }
 };
 
-export default function DailySchedule() {
+export default function DailySchedule({ isMobile = false }) {
     const blocks = useDateStore((state) => state.blocks);
     const activeScenarioId = useDateStore((state) => state.activeScenarioId);
     const travelInfos = useDateStore((state) => state.travelInfos);
@@ -99,6 +99,59 @@ export default function DailySchedule() {
     }, [activeBlocks, travelInfos, startTime]);
 
     if (activeBlocks.length === 0) return null;
+
+    if (isMobile) {
+        return (
+            <div className="bg-white flex flex-col h-full w-full overflow-hidden">
+                <div className="border-b flex items-center justify-between shrink-0 bg-gray-50 h-[50px] px-4">
+                    <h2 className="text-xs font-black text-gray-800 uppercase tracking-wider">
+                        Déroulé de la journée
+                    </h2>
+                    <input
+                        type="time"
+                        value={startTime}
+                        onChange={(e) => setStartTime(e.target.value)}
+                        className="text-xs font-bold bg-white border border-gray-300 rounded-lg px-2 py-1 outline-none focus:border-blue-500 shadow-sm"
+                    />
+                </div>
+                <div className="flex-1 overflow-y-auto p-4 relative no-scrollbar">
+                    <div className="absolute top-0 bottom-0 w-px bg-gray-200 left-10"></div>
+                    {scheduleItems.map((item) => {
+                        const isPunctual = item.duration === 0;
+                        const blockHeight = isPunctual ? 24 : Math.max(item.duration * 1.5, 35);
+                        return (
+                            <div key={item.id} className="flex mb-1 relative" style={{ height: `${blockHeight}px`, alignItems: isPunctual ? 'center' : 'flex-start' }}>
+                                <div className="shrink-0 text-[10px] text-gray-400 font-bold pt-1 text-right w-10 pr-2">
+                                    {formatTime(item.startTime)}
+                                </div>
+                                <div className="flex-1 relative pl-3 w-full h-full">
+                                    <div className="absolute left-[-4.5px] w-2 h-2 rounded-full border-2 border-white z-10 top-2" style={{ backgroundColor: item.colors.bg }}></div>
+                                    {isPunctual ? (
+                                        <div className="w-full h-full flex items-center overflow-hidden" title={`${item.name} (${formatTime(item.startTime)})`}>
+                                            <span className="font-bold text-[11px] truncate" style={{ color: item.colors.bg }}>{item.name}</span>
+                                        </div>
+                                    ) : (
+                                        <div
+                                            className="rounded-lg p-2 shadow-sm w-full h-full flex flex-col justify-center overflow-hidden border border-black/5"
+                                            style={{ backgroundColor: item.colors.bg, color: item.colors.text }}
+                                        >
+                                            <div className="flex justify-between items-center gap-2 w-full">
+                                                <span className="font-bold text-[11px] truncate flex-1">{item.name}</span>
+                                                <div className="flex flex-col items-end shrink-0 text-right">
+                                                    <span className="font-medium text-[10px] opacity-90">{formatTime(item.startTime)} - {formatTime(item.endTime)}</span>
+                                                    <span className="text-[9px] opacity-75">{item.duration} min</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        );
+                    })}
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className={`bg-white shadow-xl z-20 flex-col border-l border-gray-200 overflow-hidden shrink-0 hidden lg:flex transition-[width] duration-300 ease-in-out ${isExpanded ? 'w-[280px] xl:w-[360px]' : 'w-[60px]'}`}>
