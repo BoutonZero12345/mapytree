@@ -5,6 +5,17 @@ import { useDateStore } from '../store/useDateStore';
 import TransportSelector from './TransportSelector';
 import { getCachedPlace } from '../../../services/db';
 
+const hslToHex = (h, s, l) => {
+    l /= 100;
+    const a = (s * Math.min(l, 1 - l)) / 100;
+    const f = (n) => {
+        const k = (n + h / 30) % 12;
+        const color = l - a * Math.max(Math.min(k - 3, 9 - k, 1), -1);
+        return Math.round(255 * color).toString(16).padStart(2, '0');
+    };
+    return `#${f(0)}${f(8)}${f(4)}`;
+};
+
 export default function SortableBlock({ block, index, travelInfo, scheduledStartTime, isLast, nextBlockId, nextBlockMode, nextBlockRouteIndex }) {
     const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: block.id });
 
@@ -16,8 +27,12 @@ export default function SortableBlock({ block, index, travelInfo, scheduledStart
     const categories = useDateStore((state) => state.categories);
     const toggleFavorite = useDateStore((state) => state.toggleFavorite);
     const setActivePlaceDetails = useDateStore((state) => state.setActivePlaceDetails); // NOUVEAU
+    const selectedDays = useDateStore((state) => state.selectedDays || []);
 
     const [isExpanded, setIsExpanded] = useState(false);
+    const [showCustomColorPicker, setShowCustomColorPicker] = useState(false);
+    const [currentHue, setCurrentHue] = useState(200);
+    const [currentLightness, setCurrentLightness] = useState(50);
 
     const isFavorite = favorites.some(f => (f.placeId && f.placeId === block.placeId) || (f.lat === block.lat && f.lng === block.lng));
 
@@ -86,7 +101,22 @@ export default function SortableBlock({ block, index, travelInfo, scheduledStart
         }
     };
 
+    // NOUVEAU : Alerte si fermé un des jours du planning
+    const checkSelectedDaysStatus = (openingHours, selectedDays) => {
+        if (!openingHours || !selectedDays || selectedDays.length === 0) return null;
+        for (const day of selectedDays) {
+            const line = openingHours.find(l => l.startsWith(day));
+            if (line) {
+                if (line.includes('Fermé') || line.includes('Closed')) {
+                    return { day, status: 'CLOSED', message: `Fermé le ${day}` };
+                }
+            }
+        }
+        return null;
+    };
+
     const hoursStatus = checkOpeningHours(block.openingHours, scheduledStartTime);
+    const closedDayAlert = checkSelectedDaysStatus(block.openingHours, selectedDays);
 
     // Ouvre la modal Google Place enrichie
     const handleShowGoogleDetails = async (e) => {
@@ -165,16 +195,30 @@ export default function SortableBlock({ block, index, travelInfo, scheduledStart
                         )}
 
                         {/* Affichage intelligent du statut d'ouverture sous l'adresse */}
-                        {hoursStatus && (
+                        {closedDayAlert ? (
+                            <div className="mt-1 flex flex-wrap gap-1">
+                                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-black bg-red-650 text-white animate-pulse border border-red-750 shadow-sm">
+                                    <svg className="w-2.5 h-2.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+                                    <span>{closedDayAlert.message}</span>
+                                </span>
+                            </div>
+                        ) : hoursStatus && (
                             <div className="mt-1">
-                                <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold ${
+                                <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold ${
                                     hoursStatus.status === 'OPEN' 
                                         ? 'bg-green-50 text-green-700 border border-green-100' 
                                         : hoursStatus.status === 'CLOSING_SOON'
                                         ? 'bg-amber-50 text-amber-700 border border-amber-100'
                                         : 'bg-red-50 text-red-700 border border-red-100 animate-pulse'
                                 }`}>
-                                    {hoursStatus.status === 'OPEN' ? '🟢' : hoursStatus.status === 'CLOSING_SOON' ? '⚠️' : '❌'} {hoursStatus.message}
+                                    {hoursStatus.status === 'OPEN' ? (
+                                        <svg className="w-2.5 h-2.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 8 12 12 14 14"></polyline></svg>
+                                    ) : hoursStatus.status === 'CLOSING_SOON' ? (
+                                        <svg className="w-2.5 h-2.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+                                    ) : (
+                                        <svg className="w-2.5 h-2.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>
+                                    )}
+                                    <span>{hoursStatus.message}</span>
                                 </span>
                             </div>
                         )}
@@ -239,8 +283,8 @@ export default function SortableBlock({ block, index, travelInfo, scheduledStart
                         <div className="flex flex-wrap items-center gap-3">
                             <div className="flex flex-col gap-1">
                                 <span className="text-[10px] font-bold text-gray-400 uppercase tracking-tight">Heure fixée</span>
-                                <div className="flex items-center gap-2 bg-gray-50 px-2 py-1 rounded-lg">
-                                    <span className="text-xs">📍</span>
+                                <div className="flex items-center gap-2 bg-gray-50 px-2 py-1.5 rounded-lg">
+                                    <svg className="text-gray-400 shrink-0" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
                                     <input 
                                         type="time" 
                                         value={block.fixedStartTime || ''} 
@@ -259,16 +303,27 @@ export default function SortableBlock({ block, index, travelInfo, scheduledStart
                             </div>
                             <div className="flex flex-col gap-1">
                                 <span className="text-[10px] font-bold text-gray-400 uppercase tracking-tight">Temps</span>
-                                <div className="flex items-center gap-2 bg-gray-50 px-2 py-1 rounded-lg">
-                                    <span className="text-xs">⏱️</span>
-                                    <input type="number" value={block.durationMinutes || ''} onChange={(e) => updateBlockDetails(block.id, { durationMinutes: Number(e.target.value) })} className="bg-transparent w-12 text-sm font-bold outline-none" />
+                                <div className="flex items-center gap-2 bg-gray-50 px-2 py-1.5 rounded-lg">
+                                    <svg className="text-gray-400 shrink-0" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 15 15"></polyline></svg>
+                                    <input 
+                                        type="number" 
+                                        min="0"
+                                        value={block.durationMinutes === 0 ? '' : block.durationMinutes} 
+                                        onChange={(e) => {
+                                            const val = e.target.value;
+                                            const num = val === '' ? 0 : (Number(val) === 0 ? 0 : Math.max(1, Number(val)));
+                                            updateBlockDetails(block.id, { durationMinutes: num });
+                                        }} 
+                                        placeholder="0"
+                                        className="bg-transparent w-12 text-sm font-bold outline-none" 
+                                    />
                                     <span className="text-[10px] text-gray-500 font-bold uppercase">min</span>
                                 </div>
                             </div>
                             <div className="flex flex-col gap-1">
                                 <span className="text-[10px] font-bold text-gray-400 uppercase tracking-tight">Budget</span>
-                                <div className="flex items-center gap-2 bg-gray-50 px-2 py-1 rounded-lg">
-                                    <span className="text-xs">💶</span>
+                                <div className="flex items-center gap-2 bg-gray-50 px-2 py-1.5 rounded-lg">
+                                    <svg className="text-gray-400 shrink-0" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
                                     <input type="number" value={block.budget || ''} onChange={(e) => updateBlockDetails(block.id, { budget: Number(e.target.value) })} placeholder="0" className="bg-transparent w-12 text-sm font-bold outline-none" />
                                     <span className="text-[10px] text-gray-500 font-bold uppercase">€</span>
                                 </div>
@@ -309,12 +364,89 @@ export default function SortableBlock({ block, index, travelInfo, scheduledStart
                                             style={{ backgroundColor: color }}
                                         />
                                     ))}
-                                    <input
-                                        type="color"
-                                        value={block.color || '#0ea5e9'}
-                                        onChange={(e) => updateBlockColor(block.id, e.target.value)}
-                                        className="w-5 h-5 rounded-full overflow-hidden border-none p-0 cursor-pointer hover:scale-110 transition-transform shadow-sm"
-                                    />
+                                    {/* Sélecteur de couleur custom premium */}
+                                    <div className="relative">
+                                        <button
+                                            onClick={() => setShowCustomColorPicker(!showCustomColorPicker)}
+                                            className="w-5 h-5 rounded-full border border-gray-250 bg-gradient-to-tr from-red-500 via-green-500 to-blue-500 hover:scale-110 transition-transform shadow-sm flex items-center justify-center"
+                                            title="Palette de couleurs personnalisée"
+                                        >
+                                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path><path d="M2 12h20"></path></svg>
+                                        </button>
+
+                                        {showCustomColorPicker && (
+                                            <>
+                                                <div className="fixed inset-0 z-30" onClick={() => setShowCustomColorPicker(false)}></div>
+                                                <div className="absolute bottom-full left-0 mb-2 bg-white border border-gray-250 rounded-2xl shadow-xl p-3.5 z-40 min-w-[200px] flex flex-col gap-2.5 animate-in fade-in slide-in-from-bottom-2 duration-150">
+                                                    <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest select-none">Palette & Nuances</span>
+                                                    
+                                                    {/* Pastilles Harmonieuses */}
+                                                    <div className="grid grid-cols-6 gap-1 mb-1">
+                                                        {['#0ea5e9', '#3b82f6', '#6366f1', '#8b5cf6', '#a855f7', '#ec4899', '#f43f5e', '#ef4444', '#f97316', '#f59e0b', '#10b981', '#06b6d4'].map(c => (
+                                                            <button
+                                                                key={c}
+                                                                type="button"
+                                                                onClick={() => updateBlockColor(block.id, c)}
+                                                                className={`w-4 h-4 rounded-full border transition-transform hover:scale-125 ${block.color === c ? 'border-gray-800 scale-110 shadow-xs' : 'border-transparent'}`}
+                                                                style={{ backgroundColor: c }}
+                                                            />
+                                                        ))}
+                                                    </div>
+
+                                                    {/* Preview */}
+                                                    <div className="flex items-center gap-2">
+                                                        <div 
+                                                            className="w-7 h-7 rounded-xl border shadow-sm shrink-0" 
+                                                            style={{ backgroundColor: block.color || '#0ea5e9' }}
+                                                        />
+                                                        <span className="text-[10px] font-mono font-bold text-gray-600 uppercase">{block.color}</span>
+                                                    </div>
+
+                                                    {/* Hue Slider */}
+                                                    <div className="flex flex-col gap-1">
+                                                        <span className="text-[8px] font-black text-gray-450 uppercase">Teinte</span>
+                                                        <input 
+                                                            type="range" 
+                                                            min="0" 
+                                                            max="360" 
+                                                            value={currentHue}
+                                                            onChange={(e) => {
+                                                                const h = Number(e.target.value);
+                                                                setCurrentHue(h);
+                                                                const hex = hslToHex(h, 95, currentLightness);
+                                                                updateBlockColor(block.id, hex);
+                                                            }}
+                                                            className="w-full h-2 rounded-lg appearance-none cursor-pointer"
+                                                            style={{
+                                                                background: 'linear-gradient(to right, red 0%, yellow 17%, green 33%, cyan 50%, blue 67%, magenta 83%, red 100%)'
+                                                            }}
+                                                        />
+                                                    </div>
+
+                                                    {/* Lightness Slider */}
+                                                    <div className="flex flex-col gap-1">
+                                                        <span className="text-[8px] font-black text-gray-450 uppercase">Luminosité</span>
+                                                        <input 
+                                                            type="range" 
+                                                            min="20" 
+                                                            max="80" 
+                                                            value={currentLightness}
+                                                            onChange={(e) => {
+                                                                const l = Number(e.target.value);
+                                                                setCurrentLightness(l);
+                                                                const hex = hslToHex(currentHue, 95, l);
+                                                                updateBlockColor(block.id, hex);
+                                                            }}
+                                                            className="w-full h-1.5 rounded-lg appearance-none cursor-pointer bg-gray-200"
+                                                            style={{
+                                                                background: `linear-gradient(to right, #000 0%, ${hslToHex(currentHue, 95, 50)} 50%, #fff 100%)`
+                                                            }}
+                                                        />
+                                                    </div>
+                                                </div>
+                                            </>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
 

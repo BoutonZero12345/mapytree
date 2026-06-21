@@ -5,6 +5,12 @@ export const createSyncSlice = (set, get) => ({
     currentDateName: '',
     isSaving: false,
     isLoading: false,
+    selectedDays: [], // NOUVEAU : Jours de la semaine sélectionnés pour ce planning
+
+    setSelectedDays: (days) => {
+        set({ selectedDays: days });
+        get().saveToDb(); // Sauvegarde automatique lors du changement
+    },
 
     loadFromDb: async (id) => {
         if (!id) return;
@@ -17,6 +23,8 @@ export const createSyncSlice = (set, get) => ({
                 scenarios: data.scenarios || [{ id: 'plan_a', name: 'Plan A' }],
                 activeScenarioId: data.scenarios ? data.scenarios[0].id : 'plan_a',
                 startTime: data.startTime || '09:00',
+                selectedDays: data.selectedDays || [], // Charge depuis la DB
+                isFavorite: data.isFavorite || false, // Charge depuis la DB
                 isLoading: false
             });
         } else {
@@ -32,7 +40,9 @@ export const createSyncSlice = (set, get) => ({
         await saveDatePlan(state.currentDateId, {
             blocks: state.blocks,
             scenarios: state.scenarios,
-            startTime: state.startTime
+            startTime: state.startTime,
+            selectedDays: state.selectedDays, // Enregistre dans la DB
+            isFavorite: state.isFavorite || false
         });
 
         set({ isSaving: false });

@@ -12,14 +12,23 @@ export default function PlanningLayout() {
     const loadFromDb = useDateStore((state) => state.loadFromDb);
     const loadFavorites = useDateStore((state) => state.loadFavorites);
     const currentDateName = useDateStore((state) => state.currentDateName);
+    const isFavorite = useDateStore((state) => state.isFavorite);
+    const togglePlanningFavorite = useDateStore((state) => state.togglePlanningFavorite);
+    const currentDateId = useDateStore((state) => state.currentDateId);
+
+    // Sélections globales de jours & visibilité du déroulé
+    const isSchedulePanelOpen = useDateStore((state) => state.isSchedulePanelOpen);
+    const selectedDays = useDateStore((state) => state.selectedDays || []);
+    const setSelectedDays = useDateStore((state) => state.setSelectedDays);
 
     // Fiche de détails riches de lieu
     const activePlaceDetails = useDateStore((state) => state.activePlaceDetails);
     const setActivePlaceDetails = useDateStore((state) => state.setActivePlaceDetails);
 
-    // États pour le tiroir mobile
+    // États pour le tiroir mobile & sélecteur de jours
     const [drawerHeight, setDrawerHeight] = useState('half'); // 'collapsed', 'half', 'expanded'
     const [mobileTab, setMobileTab] = useState('timeline'); // 'timeline', 'schedule'
+    const [isDaySelectorOpen, setIsDaySelectorOpen] = useState(false);
 
     useEffect(() => {
         if (id) {
@@ -59,7 +68,85 @@ export default function PlanningLayout() {
                     >
                         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6" /></svg>
                     </button>
-                    <h1 className="text-lg font-extrabold text-gray-800 truncate">{currentDateName || 'Chargement...'}</h1>
+                    <div className="flex-1 overflow-hidden">
+                        <div className="flex items-center gap-1.5 overflow-hidden">
+                            <h1 className="text-base font-black text-gray-800 truncate leading-snug">{currentDateName || 'Chargement...'}</h1>
+                            {currentDateId && (
+                                <button
+                                    onClick={() => togglePlanningFavorite(currentDateId)}
+                                    className={`p-1 rounded-lg transition-all ${isFavorite ? 'text-yellow-500 hover:text-yellow-600 scale-105' : 'text-gray-300 hover:text-gray-450 hover:scale-105'}`}
+                                    title="Favoris"
+                                >
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill={isFavorite ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2.5">
+                                        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+                                    </svg>
+                                </button>
+                            )}
+                        </div>
+                        {selectedDays.length > 0 && (
+                            <p className="text-[10px] font-extrabold text-blue-600 truncate mt-0.5 flex items-center gap-1">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                                    <line x1="16" y1="2" x2="16" y2="6"></line>
+                                    <line x1="8" y1="2" x2="8" y2="6"></line>
+                                    <line x1="3" y1="10" x2="21" y2="10"></line>
+                                </svg>
+                                {selectedDays.join(', ')}
+                            </p>
+                        )}
+                    </div>
+
+                    {/* Sélecteur Hebdomadaire de Jours */}
+                    <div className="relative shrink-0">
+                        <button
+                            onClick={() => setIsDaySelectorOpen(!isDaySelectorOpen)}
+                            className={`p-2 hover:bg-gray-200 rounded-xl transition-all border ${
+                                selectedDays.length > 0 
+                                    ? 'text-blue-600 bg-blue-50 border-blue-100 shadow-sm' 
+                                    : 'text-gray-400 bg-white border-gray-250/60'
+                            }`}
+                            title="Choisir les jours de la semaine"
+                        >
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                                <line x1="16" y1="2" x2="16" y2="6"></line>
+                                <line x1="8" y1="2" x2="8" y2="6"></line>
+                                <line x1="3" y1="10" x2="21" y2="10"></line>
+                            </svg>
+                        </button>
+                        {isDaySelectorOpen && (
+                            <>
+                                <div className="fixed inset-0 z-30" onClick={() => setIsDaySelectorOpen(false)}></div>
+                                <div className="absolute top-full right-0 mt-2 bg-white border border-gray-250 rounded-2xl shadow-xl p-3.5 z-40 min-w-[280px] animate-in fade-in zoom-in-95 duration-150">
+                                    <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 select-none">Jours du planning</h3>
+                                    <div className="grid grid-cols-2 gap-1.5">
+                                        {['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'].map(day => {
+                                            const isSelected = selectedDays.includes(day);
+                                            return (
+                                                <button
+                                                    key={day}
+                                                    onClick={() => {
+                                                        const updated = isSelected 
+                                                            ? selectedDays.filter(d => d !== day) 
+                                                            : [...selectedDays, day];
+                                                        setSelectedDays(updated);
+                                                    }}
+                                                    className={`px-2.5 py-1.5 text-[11px] font-extrabold rounded-xl border transition-all text-left flex items-center justify-between ${
+                                                        isSelected 
+                                                            ? 'bg-blue-600 border-blue-600 text-white shadow-sm font-black' 
+                                                            : 'bg-gray-50 border-gray-200 text-gray-600 hover:bg-gray-100'
+                                                    }`}
+                                                >
+                                                    <span>{day}</span>
+                                                    {isSelected && <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4.5"><polyline points="20 6 9 17 4 12"></polyline></svg>}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            </>
+                        )}
+                    </div>
                 </div>
                 <div className="flex-1 overflow-hidden p-4">
                     <Timeline />
@@ -67,19 +154,21 @@ export default function PlanningLayout() {
             </div>
 
             {/* 2. Zone Carte (Prend 100% de l'écran sur mobile, flex-1 sur desktop) */}
-            <div className="w-full h-full lg:flex-1 relative z-0 order-1">
+            <div className="w-full h-full lg:flex-1 relative z-0 order-4">
                 <Map />
             </div>
 
-            {/* 2.5. Panneau de Détails de Lieu (À gauche du Déroulé sur desktop) */}
-            <div className="hidden lg:flex h-full z-10 order-2">
+            {/* 2.5. Panneau de Détails de Lieu (À droite du Déroulé sur desktop) */}
+            <div className="hidden lg:flex h-full z-10 order-3">
                 <PlaceDetailsPanel />
             </div>
 
-            {/* 3. Calendrier/Déroulé (Visible à droite sur desktop seulement) */}
-            <div className="hidden lg:flex h-full z-10 order-3">
-                <DailySchedule />
-            </div>
+            {/* 3. Calendrier/Déroulé (Masqué par défaut, s'affiche à l'ordre 2 à droite de la timeline) */}
+            {isSchedulePanelOpen && (
+                <div className="hidden lg:flex h-full z-10 order-2 border-r border-gray-200">
+                    <DailySchedule />
+                </div>
+            )}
 
             {/* 4. TIROIR COULISSANT MOBILE (Visible uniquement sur écrans < 1024px) */}
             <div 

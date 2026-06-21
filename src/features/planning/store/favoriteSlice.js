@@ -1,4 +1,4 @@
-import { collection, getDocs, setDoc, deleteDoc, doc, updateDoc } from 'firebase/firestore';
+import { collection, getDocs, getDoc, setDoc, deleteDoc, doc, updateDoc } from 'firebase/firestore';
 import { db } from '../../../config/firebase';
 import { deleteCachedPlace } from '../../../services/db';
 
@@ -50,6 +50,14 @@ export const createFavoriteSlice = (set, get) => ({
         }));
     },
 
+    updateCategory: async (id, updates) => {
+        const catRef = doc(db, 'favorite_categories', id);
+        await updateDoc(catRef, updates);
+        set((state) => ({
+            categories: state.categories.map(c => c.id === id ? { ...c, ...updates } : c)
+        }));
+    },
+
     toggleFavorite: async (place) => {
         const state = get();
         const existingFav = state.favorites.find(f => (f.placeId && f.placeId === place.placeId) || (f.lat === place.lat && f.lng === place.lng));
@@ -57,7 +65,12 @@ export const createFavoriteSlice = (set, get) => ({
         if (existingFav) {
             await deleteDoc(doc(db, 'favorites', existingFav.id));
             if (existingFav.placeId) {
-                await deleteCachedPlace(existingFav.placeId); // Enlever les images stockées dans le cache
+                const clickRef = doc(db, 'places_click_counts', existingFav.placeId);
+                const clickSnap = await getDoc(clickRef);
+                const clickCount = clickSnap.exists() ? (clickSnap.data().count || 0) : 0;
+                if (clickCount < 3) {
+                    await deleteCachedPlace(existingFav.placeId);
+                }
             }
             set({ favorites: state.favorites.filter(f => f.id !== existingFav.id) });
         } else {

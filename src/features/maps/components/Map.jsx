@@ -4,7 +4,7 @@ import SearchBar from './SearchBar';
 import RouteRenderer from './RouteRenderer';
 import { useRouteLogic } from '../hooks/useRouteLogic';
 import { useDateStore } from '../../planning/store/useDateStore';
-import { getCachedPlace, saveCachedPlace } from '../../../services/db';
+import { getCachedPlace, saveCachedPlace, incrementPlaceClickCount } from '../../../services/db';
 
 const containerStyle = { width: '100%', height: '100%' };
 const defaultCenter = { lat: 48.8566, lng: 2.3522 };
@@ -24,6 +24,7 @@ export default function Map() {
     const toggleFavorite = useDateStore((state) => state.toggleFavorite);
     const loadFavorites = useDateStore((state) => state.loadFavorites);
     const setActivePlaceDetails = useDateStore((state) => state.setActivePlaceDetails);
+    const selectedDays = useDateStore((state) => state.selectedDays || []);
 
     const activeBlocks = blocks.filter(b => b.scenarioId === activeScenarioId);
 
@@ -55,13 +56,16 @@ export default function Map() {
                     setSelectedPlace(cachedData);
                     setMapCenter({ lat: cachedData.lat, lng: cachedData.lng });
                     setActivePlaceDetails(cachedData); // Rempli le volet latéral
+                    if (activeScenarioId !== 'plan_a') {
+                        addBlock(cachedData);
+                    }
                     return;
                 }
 
                 const service = new window.google.maps.places.PlacesService(mapRef.current);
                 service.getDetails({
                     placeId: e.placeId,
-                    fields: ['name', 'formatted_address', 'geometry', 'place_id', 'rating', 'user_ratings_total', 'photos', 'reviews', 'opening_hours', 'price_level']
+                    fields: ['name', 'formatted_address', 'geometry', 'place_id', 'rating', 'user_ratings_total', 'opening_hours', 'price_level']
                 }, async (place, status) => {
                     if (status === window.google.maps.places.PlacesServiceStatus.OK && place.geometry?.location) {
                         const newPlace = {
@@ -72,22 +76,25 @@ export default function Map() {
                             placeId: place.place_id,
                             rating: place.rating,
                             userRatingsTotal: place.user_ratings_total,
-                            imageUrl: place.photos?.[0]?.getUrl({ maxWidth: 650 }) || null,
+                            imageUrl: null,
                             priceLevel: place.price_level || null,
                             openingHours: place.opening_hours?.weekday_text || null,
-                            reviews: place.reviews?.slice(0, 100).map(r => ({
-                                author: r.author_name,
-                                rating: r.rating,
-                                text: r.text,
-                                time: r.relative_time_description,
-                                avatar: r.profile_photo_url
-                            })) || null,
-                            photos: place.photos?.slice(0, 30).map(p => p.getUrl({ maxWidth: 650 })) || null
+                            reviews: null,
+                            photos: null
                         };
-                        await saveCachedPlace(place.place_id, newPlace);
+                        
+                        const clickCount = await incrementPlaceClickCount(place.place_id);
+                        const isFavorite = favorites.some(f => f.placeId === place.place_id);
+                        if (clickCount >= 3 || isFavorite) {
+                            await saveCachedPlace(place.place_id, newPlace);
+                        }
+                        
                         setSelectedPlace(newPlace);
                         setMapCenter({ lat: newPlace.lat, lng: newPlace.lng });
                         setActivePlaceDetails(newPlace); // Rempli le volet latéral
+                        if (activeScenarioId !== 'plan_a') {
+                            addBlock(newPlace);
+                        }
                     }
                 });
             };
@@ -107,10 +114,13 @@ export default function Map() {
                     };
                     setSelectedPlace(newPlace);
                     setMapCenter({ lat: newPlace.lat, lng: newPlace.lng });
+                    if (activeScenarioId !== 'plan_a') {
+                        addBlock(newPlace);
+                    }
                 }
             });
         }
-    }, [setActivePlaceDetails]);
+    }, [setActivePlaceDetails, favorites, activeScenarioId, addBlock]);
 
     const handlePlaceSelected = async (place) => {
         const newLocation = { lat: place.lat, lng: place.lng };
@@ -121,11 +131,14 @@ export default function Map() {
             if (cachedData) {
                 setSelectedPlace(cachedData);
                 setActivePlaceDetails(cachedData); // Rempli le volet latéral
+                if (activeScenarioId !== 'plan_a') {
+                    addBlock(cachedData);
+                }
             } else if (mapRef.current) {
                 const service = new window.google.maps.places.PlacesService(mapRef.current);
                 service.getDetails({
                     placeId: place.placeId,
-                    fields: ['name', 'formatted_address', 'geometry', 'place_id', 'rating', 'user_ratings_total', 'photos', 'reviews', 'opening_hours', 'price_level']
+                    fields: ['name', 'formatted_address', 'geometry', 'place_id', 'rating', 'user_ratings_total', 'opening_hours', 'price_level']
                 }, async (details, status) => {
                     if (status === window.google.maps.places.PlacesServiceStatus.OK && details) {
                         const richPlace = {
@@ -136,33 +149,45 @@ export default function Map() {
                             placeId: details.place_id,
                             rating: details.rating,
                             userRatingsTotal: details.user_ratings_total,
-                            imageUrl: details.photos?.[0]?.getUrl({ maxWidth: 650 }) || null,
+                            imageUrl: null,
                             priceLevel: details.price_level || null,
                             openingHours: details.opening_hours?.weekday_text || null,
-                            reviews: details.reviews?.slice(0, 100).map(r => ({
-                                author: r.author_name,
-                                rating: r.rating,
-                                text: r.text,
-                                time: r.relative_time_description,
-                                avatar: r.profile_photo_url
-                            })) || null,
-                            photos: details.photos?.slice(0, 30).map(p => p.getUrl({ maxWidth: 650 })) || null
+                            reviews: null,
+                            photos: null
                         };
-                        await saveCachedPlace(details.place_id, richPlace);
+                        
+                        const clickCount = await incrementPlaceClickCount(details.place_id);
+                        const isFavorite = favorites.some(f => f.placeId === details.place_id);
+                        if (clickCount >= 3 || isFavorite) {
+                            await saveCachedPlace(details.place_id, richPlace);
+                        }
+                        
                         setSelectedPlace(richPlace);
                         setActivePlaceDetails(richPlace); // Rempli le volet latéral
+                        if (activeScenarioId !== 'plan_a') {
+                            addBlock(richPlace);
+                        }
                     } else {
                         setSelectedPlace(place);
                         setActivePlaceDetails(place); // Rempli le volet latéral
+                        if (activeScenarioId !== 'plan_a') {
+                            addBlock(place);
+                        }
                     }
                 });
             } else {
                 setSelectedPlace(place);
                 setActivePlaceDetails(place); // Rempli le volet latéral
+                if (activeScenarioId !== 'plan_a') {
+                    addBlock(place);
+                }
             }
         } else {
             setSelectedPlace(place);
             setActivePlaceDetails(place); // Rempli le volet latéral
+            if (activeScenarioId !== 'plan_a') {
+                addBlock(place);
+            }
         }
 
         setMapCenter(newLocation);
@@ -172,16 +197,46 @@ export default function Map() {
         }
     };
 
-    // NOUVEAU : Fonction de recherche textuelle large (restaurants, etc.) avec filtres
     const handleBroadSearch = useCallback((query, filterParams = {}) => {
-        if (!mapRef.current || !query.trim()) return;
+        if (!mapRef.current) return;
 
         const service = new window.google.maps.places.PlacesService(mapRef.current);
+        
+        let enrichedQuery = query.trim();
+        let placeType = undefined;
+        
+        if (filterParams.category === 'lodging') {
+            placeType = 'lodging';
+            if (!enrichedQuery) enrichedQuery = "hôtel";
+            if (filterParams.subType === '3_stars') enrichedQuery += " 3 étoiles";
+            else if (filterParams.subType === '4_stars') enrichedQuery += " 4 étoiles";
+            else if (filterParams.subType === '5_stars') enrichedQuery += " 5 étoiles";
+        } else if (filterParams.category === 'restaurant') {
+            placeType = 'restaurant';
+            if (!enrichedQuery) enrichedQuery = "restaurant";
+            if (filterParams.subType === 'italien') enrichedQuery += " italien";
+            else if (filterParams.subType === 'japonais') enrichedQuery += " japonais";
+            else if (filterParams.subType === 'fast_food') enrichedQuery += " burger fast-food";
+            else if (filterParams.subType === 'francais') enrichedQuery += " français";
+            else if (filterParams.subType === 'asiatique') enrichedQuery += " asiatique";
+        } else if (filterParams.category === 'museum') {
+            placeType = 'tourist_attraction';
+            if (!enrichedQuery) enrichedQuery = "musée attraction";
+            else enrichedQuery += " musée attraction";
+        } else if (filterParams.category === 'transit_station') {
+            placeType = 'transit_station';
+            if (!enrichedQuery) enrichedQuery = "gare station métro";
+            else enrichedQuery += " gare station métro";
+        }
+        
+        if (!enrichedQuery) return; // Si toujours vide, ne rien faire
+
         const request = {
-            query: query,
+            query: enrichedQuery,
             bounds: mapRef.current.getBounds(),
             minPrice: filterParams.minPrice ?? 0,
-            maxPrice: filterParams.maxPrice ?? 4
+            maxPrice: filterParams.maxPrice ?? 4,
+            type: placeType
         };
 
         service.textSearch(request, (results, status) => {
@@ -192,7 +247,11 @@ export default function Map() {
                     (res.user_ratings_total || 0) >= (filterParams.minReviews || 0)
                 );
 
-                const formattedResults = filtered.map(res => ({
+                // LIMITE DE RÉSULTATS (maxResults)
+                const maxResults = filterParams.maxResults || 25;
+                const sliced = filtered.slice(0, maxResults);
+
+                const formattedResults = sliced.map(res => ({
                     id: res.place_id,
                     placeId: res.place_id,
                     name: res.name,
@@ -270,16 +329,16 @@ export default function Map() {
                         position={{ lat: res.lat, lng: res.lng }}
                         icon="http://maps.google.com/mapfiles/ms/icons/orange-dot.png"
                         onClick={async () => {
-                            setSelectedPlace(res);
                             if (res.placeId) {
                                 const cached = await getCachedPlace(res.placeId);
                                 if (cached) {
+                                    setSelectedPlace(cached);
                                     setActivePlaceDetails(cached);
                                 } else if (mapRef.current) {
                                     const service = new window.google.maps.places.PlacesService(mapRef.current);
                                     service.getDetails({
                                         placeId: res.placeId,
-                                        fields: ['name', 'formatted_address', 'geometry', 'place_id', 'rating', 'user_ratings_total', 'photos', 'reviews', 'opening_hours', 'price_level']
+                                        fields: ['name', 'formatted_address', 'geometry', 'place_id', 'rating', 'user_ratings_total', 'opening_hours', 'price_level']
                                     }, async (details, status) => {
                                         if (status === window.google.maps.places.PlacesServiceStatus.OK && details) {
                                             const richPlace = {
@@ -290,23 +349,24 @@ export default function Map() {
                                                 placeId: details.place_id,
                                                 rating: details.rating,
                                                 userRatingsTotal: details.user_ratings_total,
-                                                imageUrl: details.photos?.[0]?.getUrl({ maxWidth: 650 }) || null,
+                                                imageUrl: null,
                                                 priceLevel: details.price_level || null,
                                                 openingHours: details.opening_hours?.weekday_text || null,
-                                                reviews: details.reviews?.slice(0, 100).map(r => ({
-                                                    author: r.author_name,
-                                                    rating: r.rating,
-                                                    text: r.text,
-                                                    time: r.relative_time_description,
-                                                    avatar: r.profile_photo_url
-                                                })) || null,
-                                                photos: details.photos?.slice(0, 30).map(p => p.getUrl({ maxWidth: 650 })) || null
+                                                reviews: null,
+                                                photos: null
                                             };
-                                            await saveCachedPlace(details.place_id, richPlace);
+                                            const clickCount = await incrementPlaceClickCount(details.place_id);
+                                            const isFavorite = favorites.some(f => f.placeId === details.place_id);
+                                            if (clickCount >= 3 || isFavorite) {
+                                                await saveCachedPlace(details.place_id, richPlace);
+                                            }
+                                            setSelectedPlace(richPlace);
                                             setActivePlaceDetails(richPlace);
                                         }
                                     });
                                 }
+                            } else {
+                                setSelectedPlace(res);
                             }
                         }}
                     />
@@ -346,6 +406,37 @@ export default function Map() {
                                 </div>
                                 
                                 <p className="text-xs text-gray-500 line-clamp-2">{selectedPlace.address}</p>
+
+                                {/* NOUVEAU : Affichage des horaires des jours concernés ou d'aujourd'hui */}
+                                {selectedPlace.openingHours && selectedPlace.openingHours.length > 0 && (
+                                    <div className="bg-slate-50 border border-slate-200/60 rounded-xl p-2 mt-1.5 flex flex-col gap-1 shadow-inner select-none">
+                                        {(() => {
+                                            const days = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
+                                            const targets = selectedDays.length > 0 ? selectedDays : [days[new Date().getDay()]];
+                                            const matchedLines = selectedPlace.openingHours.filter(line => 
+                                                targets.some(day => line.toLowerCase().startsWith(day.toLowerCase()))
+                                            );
+                                            
+                                            if (matchedLines.length === 0) return <span className="text-[9px] text-gray-400 font-extrabold italic">Horaires non disponibles</span>;
+                                            
+                                            return matchedLines.map((line, idx) => {
+                                                const parts = line.split(':');
+                                                const dayPart = parts[0];
+                                                const hoursPart = parts.slice(1).join(':').trim();
+                                                
+                                                return (
+                                                    <div key={idx} className="flex justify-between items-center text-[9px] font-bold text-gray-650">
+                                                        <span className="flex items-center gap-1 text-gray-600">
+                                                            <span className="w-1.5 h-1.5 rounded-full bg-blue-500 shrink-0 shadow-xs"></span>
+                                                            {dayPart}
+                                                        </span>
+                                                        <span className="text-blue-700 bg-blue-50 px-1 py-0.2 rounded font-extrabold border border-blue-100/50">{hoursPart}</span>
+                                                    </div>
+                                                );
+                                            });
+                                        })()}
+                                    </div>
+                                )}
                                 
                                 <button
                                     onClick={() => { addBlock(selectedPlace); setSelectedPlace(null); setSearchResults([]); }}

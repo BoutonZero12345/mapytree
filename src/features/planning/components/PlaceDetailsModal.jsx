@@ -1,7 +1,13 @@
 import { useState } from 'react';
 
 export default function PlaceDetailsModal({ place, onClose }) {
-    const [activeTab, setActiveTab] = useState('photos'); // 'photos', 'reviews', 'hours'
+    const hasPhotos = place.photos && place.photos.length > 0;
+    const hasReviews = place.reviews && place.reviews.length > 0;
+    const hasHours = place.openingHours && place.openingHours.length > 0;
+
+    const [activeTab, setActiveTab] = useState(
+        hasPhotos ? 'photos' : hasReviews ? 'reviews' : hasHours ? 'hours' : 'photos'
+    );
     const [fullScreenImage, setFullScreenImage] = useState(null);
 
     if (!place) return null;
@@ -54,24 +60,30 @@ export default function PlaceDetailsModal({ place, onClose }) {
 
                 {/* Tabs de Navigation interne */}
                 <div className="flex bg-white px-5 pt-3 border-b shrink-0 gap-4 text-sm font-extrabold">
-                    <button
-                        onClick={() => setActiveTab('photos')}
-                        className={`pb-2.5 transition-all border-b-2 ${activeTab === 'photos' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
-                    >
-                        Photos ({place.photos?.length || 0})
-                    </button>
-                    <button
-                        onClick={() => setActiveTab('reviews')}
-                        className={`pb-2.5 transition-all border-b-2 ${activeTab === 'reviews' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
-                    >
-                        Avis ({place.reviews?.length || 0})
-                    </button>
-                    <button
-                        onClick={() => setActiveTab('hours')}
-                        className={`pb-2.5 transition-all border-b-2 ${activeTab === 'hours' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
-                    >
-                        Horaires
-                    </button>
+                    {hasPhotos && (
+                        <button
+                            onClick={() => setActiveTab('photos')}
+                            className={`pb-2.5 transition-all border-b-2 ${activeTab === 'photos' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+                        >
+                            Photos ({place.photos.length})
+                        </button>
+                    )}
+                    {hasReviews && (
+                        <button
+                            onClick={() => setActiveTab('reviews')}
+                            className={`pb-2.5 transition-all border-b-2 ${activeTab === 'reviews' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+                        >
+                            Avis ({place.reviews.length})
+                        </button>
+                    )}
+                    {hasHours && (
+                        <button
+                            onClick={() => setActiveTab('hours')}
+                            className={`pb-2.5 transition-all border-b-2 ${activeTab === 'hours' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+                        >
+                            Horaires
+                        </button>
+                    )}
                 </div>
 
                 {/* Zone de contenu principale de la Modal (Scrollable) */}

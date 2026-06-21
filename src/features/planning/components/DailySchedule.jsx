@@ -19,6 +19,7 @@ export default function DailySchedule({ isMobile = false }) {
 
     const isExpanded = useDateStore((state) => state.isScheduleExpanded);
     const toggleExpanded = useDateStore((state) => state.toggleScheduleExpanded);
+    const selectedDays = useDateStore((state) => state.selectedDays || []);
 
     const activeBlocks = blocks.filter(b => b.scenarioId === activeScenarioId);
 
@@ -68,13 +69,26 @@ export default function DailySchedule({ isMobile = false }) {
             }
 
             const locationDuration = roundTo5(Number(block.durationMinutes) || 0);
+            
+            // NOUVEAU : Alerte si fermé un des jours du planning
+            const closedDayAlert = block.openingHours && selectedDays.length > 0 && (() => {
+                for (const day of selectedDays) {
+                    const line = block.openingHours.find(l => l.startsWith(day));
+                    if (line && (line.includes('Fermé') || line.includes('Closed'))) {
+                        return `Fermé le ${day}`;
+                    }
+                }
+                return null;
+            })();
+
             items.push({
                 id: `loc-${block.id}`,
                 name: block.name,
                 duration: locationDuration,
                 startTime: currentMinutes,
                 endTime: currentMinutes + locationDuration,
-                colors: { bg: block.color || BLOCK_COLORS.LOCATION.bg, text: '#ffffff' }
+                colors: { bg: block.color || BLOCK_COLORS.LOCATION.bg, text: '#ffffff' },
+                closedDayAlert: closedDayAlert
             });
             currentMinutes += locationDuration;
 
@@ -96,7 +110,7 @@ export default function DailySchedule({ isMobile = false }) {
             }
         });
         return items;
-    }, [activeBlocks, travelInfos, startTime]);
+    }, [activeBlocks, travelInfos, startTime, selectedDays]);
 
     if (activeBlocks.length === 0) return null;
 
@@ -125,21 +139,31 @@ export default function DailySchedule({ isMobile = false }) {
                                     {formatTime(item.startTime)}
                                 </div>
                                 <div className="flex-1 relative pl-3 w-full h-full">
-                                    <div className="absolute left-[-4.5px] w-2 h-2 rounded-full border-2 border-white z-10 top-2" style={{ backgroundColor: item.colors.bg }}></div>
+                                    <div className="absolute left-[-4.5px] w-2 h-2 rounded-full border-2 border-white z-10 top-2" style={{ backgroundColor: item.closedDayAlert ? '#ef4444' : item.colors.bg }}></div>
                                     {isPunctual ? (
                                         <div className="w-full h-full flex items-center overflow-hidden" title={`${item.name} (${formatTime(item.startTime)})`}>
-                                            <span className="font-bold text-[11px] truncate" style={{ color: item.colors.bg }}>{item.name}</span>
+                                            <span className="font-bold text-[11px] truncate flex items-center gap-1" style={{ color: item.closedDayAlert ? '#ef4444' : item.colors.bg }}>
+                                                {item.closedDayAlert && <span className="text-[8px] bg-red-650 text-white font-black px-1 rounded uppercase tracking-wider scale-95 shrink-0">Fermé</span>}
+                                                {item.name}
+                                            </span>
                                         </div>
                                     ) : (
                                         <div
-                                            className="rounded-lg p-2 shadow-sm w-full h-full flex flex-col justify-center overflow-hidden border border-black/5"
-                                            style={{ backgroundColor: item.colors.bg, color: item.colors.text }}
+                                            className={`rounded-lg p-2 shadow-sm w-full h-full flex flex-col justify-center overflow-hidden border ${
+                                                item.closedDayAlert 
+                                                    ? 'bg-red-600 text-white border-red-700 animate-pulse' 
+                                                    : 'border-black/5'
+                                            }`}
+                                            style={item.closedDayAlert ? {} : { backgroundColor: item.colors.bg, color: item.colors.text }}
                                         >
                                             <div className="flex justify-between items-center gap-2 w-full">
-                                                <span className="font-bold text-[11px] truncate flex-1">{item.name}</span>
+                                                <span className="font-bold text-[11px] truncate flex-1 flex items-center gap-1">
+                                                    {item.closedDayAlert && <span className="text-[8px] bg-white text-red-650 font-black px-1 rounded uppercase tracking-wider shrink-0 shadow-sm border border-red-100">Fermé</span>}
+                                                    {item.name}
+                                                </span>
                                                 <div className="flex flex-col items-end shrink-0 text-right">
                                                     <span className="font-medium text-[10px] opacity-90">{formatTime(item.startTime)} - {formatTime(item.endTime)}</span>
-                                                    <span className="text-[9px] opacity-75">{item.duration} min</span>
+                                                    <span className="text-[9px] opacity-75">{item.closedDayAlert ? item.closedDayAlert : `${item.duration} min`}</span>
                                                 </div>
                                             </div>
                                         </div>
@@ -154,39 +178,16 @@ export default function DailySchedule({ isMobile = false }) {
     }
 
     return (
-        <div className={`bg-white shadow-xl z-20 flex-col border-l border-gray-200 overflow-hidden shrink-0 hidden lg:flex transition-[width] duration-300 ease-in-out ${isExpanded ? 'w-[280px] xl:w-[360px]' : 'w-[60px]'}`}>
+        <div className="bg-white shadow-xl z-20 flex flex-col border-r border-gray-200 overflow-hidden shrink-0 hidden lg:flex w-[280px] xl:w-[360px] h-full">
 
-            <div className={`border-b flex items-center shrink-0 bg-gray-50 h-[60px] ${isExpanded ? 'justify-between px-4' : 'justify-center px-2'}`}>
-                <div className="flex items-center gap-2 overflow-hidden">
-                    <button
-                        onClick={toggleExpanded}
-                        className="p-1.5 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors shrink-0"
-                        title={isExpanded ? "Réduire l'agenda" : "Agrandir l'agenda"}
-                    >
-                        {isExpanded ? (
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
-                        ) : (
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
-                        )}
-                    </button>
-
-                    <h2 className={`text-sm font-black text-gray-800 uppercase tracking-tight whitespace-nowrap transition-opacity duration-200 ${isExpanded ? 'opacity-100' : 'opacity-0 w-0'}`}>
-                        Déroulé
-                    </h2>
-                </div>
-
-                <div className={`transition-opacity duration-200 ${isExpanded ? 'opacity-100' : 'opacity-0 w-0'}`}>
-                    <input
-                        type="time"
-                        value={startTime}
-                        onChange={(e) => setStartTime(e.target.value)}
-                        className="text-xs font-bold bg-white border border-gray-300 rounded-lg px-2 py-1 outline-none focus:border-blue-500 shadow-sm"
-                    />
-                </div>
+            <div className="border-b flex items-center justify-between shrink-0 bg-gray-50 h-[60px] px-4">
+                <h2 className="text-sm font-black text-gray-800 uppercase tracking-tight whitespace-nowrap">
+                    Déroulé
+                </h2>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-4 no-scrollbar relative">
-                <div className={`absolute top-0 bottom-0 w-px bg-gray-200 transition-all duration-300 ${isExpanded ? 'left-10' : 'left-7'}`}></div>
+            <div className="flex-1 overflow-y-auto p-4 no-scrollbar relative animate-in fade-in duration-300">
+                <div className="absolute top-0 bottom-0 w-px bg-gray-200 left-10"></div>
 
                 {scheduleItems.map((item) => {
                     const isPunctual = item.duration === 0;
@@ -195,30 +196,38 @@ export default function DailySchedule({ isMobile = false }) {
                     return (
                         <div key={item.id} className="flex mb-1 relative" style={{ height: `${blockHeight}px`, alignItems: isPunctual ? 'center' : 'flex-start' }}>
 
-                            <div className={`shrink-0 text-[10px] text-gray-400 font-bold ${isPunctual ? '' : 'pt-1'} text-right transition-all duration-300 overflow-hidden ${isExpanded ? 'w-10 pr-2 opacity-100' : 'w-0 opacity-0'}`}>
+                            <div className="shrink-0 text-[10px] text-gray-400 font-bold pt-1 text-right w-10 pr-2">
                                 {formatTime(item.startTime)}
                             </div>
 
                             <div className="flex-1 relative pl-3 w-full h-full">
-                                <div className={`absolute left-[-4.5px] w-2 h-2 rounded-full border-2 border-white z-10 ${isPunctual ? 'top-1/2 -translate-y-1/2' : 'top-2'}`} style={{ backgroundColor: item.colors.bg }}></div>
+                                <div className={`absolute left-[-4.5px] w-2 h-2 rounded-full border-2 border-white z-10 ${isPunctual ? 'top-1/2 -translate-y-1/2' : 'top-2'}`} style={{ backgroundColor: item.closedDayAlert ? '#ef4444' : item.colors.bg }}></div>
 
                                 {isPunctual ? (
-                                    <div className="w-full h-full flex items-center overflow-hidden" title={`${item.name} (${formatTime(item.startTime)})`}>
-                                        <div className={`transition-opacity duration-200 flex items-center w-full ${isExpanded ? 'opacity-100' : 'opacity-0'}`}>
-                                            <span className="font-bold text-[11px] truncate" style={{ color: item.colors.bg }}>{item.name}</span>
-                                        </div>
+                                    <div className="w-full h-full flex items-center overflow-hidden animate-in fade-in duration-200" title={`${item.name} (${formatTime(item.startTime)})`}>
+                                        <span className="font-bold text-[11px] truncate flex items-center gap-1" style={{ color: item.closedDayAlert ? '#ef4444' : item.colors.bg }}>
+                                            {item.closedDayAlert && <span className="text-[8px] bg-red-650 text-white font-black px-1 rounded uppercase tracking-wider scale-95 shrink-0">Fermé</span>}
+                                            {item.name}
+                                        </span>
                                     </div>
                                 ) : (
                                     <div
-                                        className="rounded-lg p-2 shadow-sm w-full h-full flex flex-col justify-center overflow-hidden border border-black/5"
-                                        style={{ backgroundColor: item.colors.bg, color: item.colors.text }}
+                                        className={`rounded-lg p-2 shadow-sm w-full h-full flex flex-col justify-center overflow-hidden border animate-in fade-in duration-200 ${
+                                            item.closedDayAlert 
+                                                ? 'bg-red-600 text-white border-red-700 animate-pulse' 
+                                                : 'border-black/5'
+                                        }`}
+                                        style={item.closedDayAlert ? {} : { backgroundColor: item.colors.bg, color: item.colors.text }}
                                         title={`${item.name} (${formatTime(item.startTime)} - ${formatTime(item.endTime)} | ${item.duration} min)`}
                                     >
-                                        <div className={`transition-opacity duration-200 flex justify-between items-center gap-2 w-full ${isExpanded ? 'opacity-100' : 'opacity-0'}`}>
-                                            <span className="font-bold text-[11px] truncate flex-1">{item.name}</span>
+                                        <div className="flex justify-between items-center gap-2 w-full">
+                                            <span className="font-bold text-[11px] truncate flex-1 flex items-center gap-1">
+                                                {item.closedDayAlert && <span className="text-[8px] bg-white text-red-650 font-black px-1 rounded uppercase tracking-wider shrink-0 shadow-sm border border-red-100 animate-pulse">Fermé</span>}
+                                                {item.name}
+                                            </span>
                                             <div className="flex flex-col items-end shrink-0 text-right">
                                                 <span className="font-medium text-[10px] opacity-90">{formatTime(item.startTime)} - {formatTime(item.endTime)}</span>
-                                                <span className="text-[9px] opacity-75">{item.duration} min</span>
+                                                <span className="text-[9px] opacity-75">{item.closedDayAlert ? item.closedDayAlert : `${item.duration} min`}</span>
                                             </div>
                                         </div>
                                     </div>

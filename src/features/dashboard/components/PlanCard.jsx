@@ -14,7 +14,7 @@ export default function PlanCard({ date, onClick, onDelete, onSaveEdit }) {
 
     const handleDelete = (e) => {
         e.stopPropagation();
-        if (window.confirm("Es-tu sûr de vouloir supprimer définitivement cette sortie ?")) {
+        if (window.confirm("Es-tu sûr de vouloir supprimer définitivement ce planning ?")) {
             onDelete(date.id);
         }
     };
@@ -27,8 +27,13 @@ export default function PlanCard({ date, onClick, onDelete, onSaveEdit }) {
 
     return (
         <div
+            draggable={!isEditing}
+            onDragStart={(e) => {
+                e.dataTransfer.setData('text/planningId', date.id);
+                e.dataTransfer.effectAllowed = 'move';
+            }}
             onClick={() => !isEditing && onClick(date.id)}
-            className="bg-white p-4 md:p-5 rounded-2xl shadow-sm border border-gray-200 hover:border-blue-500 transition-all cursor-pointer flex justify-between items-center group"
+            className="bg-white p-4 md:p-5 rounded-2xl shadow-sm border border-gray-200 hover:border-blue-500 transition-all cursor-pointer flex justify-between items-center group cursor-grab active:cursor-grabbing hover:shadow-md"
         >
             {isEditing ? (
                 <div className="flex flex-1 items-center gap-2" onClick={(e) => e.stopPropagation()}>
@@ -49,7 +54,11 @@ export default function PlanCard({ date, onClick, onDelete, onSaveEdit }) {
                             {date.name}
                         </h3>
                         <p className="text-xs md:text-sm text-gray-500 mt-1">
-                            Créé le {new Date(date.createdAt).toLocaleDateString('fr-FR')}
+                            {date.updatedAt ? (
+                                `Modifié le ${new Date(date.updatedAt).toLocaleDateString('fr-FR')} à ${new Date(date.updatedAt).toLocaleTimeString('fr-FR', {hour: '2-digit', minute:'2-digit'})}`
+                            ) : (
+                                `Créé le ${new Date(date.createdAt).toLocaleDateString('fr-FR')}`
+                            )}
                         </p>
                     </div>
                     <div className="flex gap-2 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">

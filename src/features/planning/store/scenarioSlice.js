@@ -2,13 +2,24 @@ export const createScenarioSlice = (set, get) => ({
     scenarios: [{ id: 'plan_a', name: 'Plan A' }],
     activeScenarioId: 'plan_a',
     startTime: '09:00',
-    isScheduleExpanded: true, // NOUVEAU : Gère l'ouverture du tiroir
+    isScheduleExpanded: true, // Gère l'ouverture du tiroir
+    isSchedulePanelOpen: false, // NOUVEAU : Gère l'affichage complet du Déroulé à droite (masqué par défaut)
 
     setActiveScenario: (id) => set({ activeScenarioId: id }),
     setStartTime: (time) => set({ startTime: time }),
+    toggleSchedulePanel: () => set((state) => ({ isSchedulePanelOpen: !state.isSchedulePanelOpen })),
+    
+    reorderScenarios: (activeId, overId) => set((state) => {
+        const oldIndex = state.scenarios.findIndex(s => s.id === activeId);
+        const newIndex = state.scenarios.findIndex(s => s.id === overId);
+        if (oldIndex === -1 || newIndex === -1) return state;
 
-    // NOUVEAU : Fonction pour ouvrir/fermer le tiroir
-    toggleScheduleExpanded: () => set((state) => ({ isScheduleExpanded: !state.isScheduleExpanded })),
+        const reordered = [...state.scenarios];
+        const [moved] = reordered.splice(oldIndex, 1);
+        reordered.splice(newIndex, 0, moved);
+
+        return { scenarios: reordered };
+    }),
 
     addScenario: (name) => {
         const newId = crypto.randomUUID();

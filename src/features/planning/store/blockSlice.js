@@ -4,12 +4,19 @@ export const createBlockSlice = (set, get) => ({
 
     addBlock: (place) => {
         const state = get();
+        const defaultBudget = place.budget || (
+            place.priceLevel === 1 ? 10
+                : place.priceLevel === 2 ? 20
+                    : place.priceLevel === 3 ? 30
+                        : place.priceLevel === 4 ? 50
+                            : 0
+        );
         set({
             blocks: [
                 ...state.blocks,
                 {
                     durationMinutes: 60,
-                    budget: 0,
+                    budget: defaultBudget,
                     notes: '',
                     color: '#0ea5e9',
                     fixedStartTime: null,
@@ -33,12 +40,12 @@ export const createBlockSlice = (set, get) => ({
                 {
                     id: crypto.randomUUID(),
                     type: 'EVENT',
-                    name: 'vide',
+                    name: 'Temps libre', // Par défaut 'Temps libre'
                     address: '',
                     lat: null,
                     lng: null,
                     order: state.blocks.filter(b => b.scenarioId === state.activeScenarioId).length + 1,
-                    durationMinutes: 0,
+                    durationMinutes: 15, // 15 minutes par défaut
                     budget: 0,
                     notes: '',
                     color: '#94a3b8', // Couleur par défaut pour les événements

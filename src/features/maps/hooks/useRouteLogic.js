@@ -7,7 +7,7 @@ export function useRouteLogic(activeBlocks) {
     const directionsService = useRef(null);
     const updateTravelInfos = useDateStore((state) => state.updateTravelInfos);
 
-    const routeKey = activeBlocks.map(b => `${b.lat}_${b.lng}_${b.travelMode}_${b.selectedRouteIndex}`).join('-').replace(/\./g, 'p');
+    const routeKey = activeBlocks.map(b => `${b.lat}_${b.lng}_${b.travelMode}_${b.selectedRouteIndex}_${(b.allowedTransitModes || []).join(',')}`).join('-').replace(/\./g, 'p');
 
     const blocksRef = useRef(activeBlocks);
     blocksRef.current = activeBlocks;
@@ -43,8 +43,9 @@ export function useRouteLogic(activeBlocks) {
                 const mode = to.travelMode || 'DRIVING';
                 const selectedIdx = to.selectedRouteIndex || 0;
 
-                // PASSAGE À V5 pour forcer les textes en français depuis l'API
-                const segmentKey = `seg_v5_${from.lat}_${from.lng}_to_${to.lat}_${to.lng}_${mode}`.replace(/\./g, 'p');
+                // PASSAGE À V6 pour inclure les filtres de transports activés dans la clé de cache
+                const allowedModesSuffix = mode === 'TRANSIT' ? `_${(to.allowedTransitModes || []).join(',')}` : '';
+                const segmentKey = `seg_v6_${from.lat}_${from.lng}_to_${to.lat}_${to.lng}_${mode}${allowedModesSuffix}`.replace(/\./g, 'p');
                 const cachedData = await getCachedRoute(segmentKey);
 
                 let routesData;
@@ -52,11 +53,22 @@ export function useRouteLogic(activeBlocks) {
                     routesData = cachedData.allRoutes;
                 } else {
                     try {
+                        const allowedModes = to.allowedTransitModes || ['SUBWAY', 'RER', 'TRAIN', 'BUS', 'TRAM', 'TRANSILIEN', 'TER'];
+                        const mappedGoogleModes = allowedModes.map(m => {
+                            if (m === 'RER' || m === 'TRANSILIEN' || m === 'TER') return 'TRAIN';
+                            return m;
+                        });
+                        const uniqueGoogleModes = [...new Set(mappedGoogleModes)];
+                        const googleTransitModes = uniqueGoogleModes.map(m => window.google.maps.TransitMode[m]).filter(Boolean);
+
                         const result = await new Promise((resolve, reject) => {
                             directionsService.current.route({
                                 origin: { lat: from.lat, lng: from.lng },
                                 destination: { lat: to.lat, lng: to.lng },
                                 travelMode: window.google.maps.TravelMode[mode],
+                                transitOptions: mode === 'TRANSIT' ? {
+                                    modes: googleTransitModes
+                                } : undefined,
                                 provideRouteAlternatives: true
                             }, (res, status) => status === 'OK' ? resolve(res) : reject(status));
                         });
