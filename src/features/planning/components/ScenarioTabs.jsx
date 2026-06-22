@@ -121,8 +121,8 @@ export default function ScenarioTabs() {
                     <button type="button" onClick={() => setIsAddingScenario(false)} className="text-gray-400 font-bold px-2 hover:text-gray-600">✕</button>
                 </form>
             ) : (
-                <button onClick={() => setIsAddingScenario(true)} className="px-4 py-2 rounded-full text-sm font-bold bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors animate-pulse">
-                    + Nouveau Plan
+                <button onClick={() => setIsAddingScenario(true)} className="w-8 h-8 shrink-0 rounded-full text-base font-black bg-blue-50 text-blue-600 hover:bg-blue-100 flex items-center justify-center transition-colors shadow-sm" title="Nouveau plan">
+                    +
                 </button>
             )}
         </div>

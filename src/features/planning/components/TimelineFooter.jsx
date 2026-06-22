@@ -31,8 +31,15 @@ export default function TimelineFooter() {
     };
 
     if (activeBlocks.length === 0) return (
-        <div className="pt-2 border-t mt-auto flex flex-col gap-2 shrink-0 bg-white p-3">
-            <button onClick={saveToDb} disabled className="w-full bg-blue-600 text-white py-2.5 rounded-xl text-sm opacity-55">
+        <div className="pt-2 border-t mt-auto flex items-center gap-2 shrink-0 bg-white p-3">
+            <div className="flex items-center justify-between gap-1.5 py-2 px-2.5 bg-gray-50 rounded-xl border border-gray-150 shadow-sm flex-1 max-w-[200px] text-[11px] opacity-55 select-none">
+                <div className="flex items-center gap-2 font-bold text-gray-505">
+                    <span>⏱️ 0 min</span>
+                    <span>💶 0 €</span>
+                </div>
+                <span className="text-[10px] text-blue-650 font-black">&gt;</span>
+            </div>
+            <button onClick={saveToDb} disabled className="flex-1 bg-blue-600 text-white py-2 px-3 rounded-xl font-bold text-xs shadow-sm h-[36px] flex items-center justify-center opacity-55">
                 Sauvegarder le projet
             </button>
         </div>
@@ -40,23 +47,32 @@ export default function TimelineFooter() {
 
     return (
         <div className="pt-2 border-t mt-auto flex flex-col gap-2 shrink-0 bg-white p-3">
-            <div onClick={() => setCollapsed(!collapsed)} className="flex justify-between items-center py-1.5 px-3 bg-gray-50 rounded-xl cursor-pointer border border-gray-150 shadow-sm">
-                {collapsed ? (
-                    <div className="flex items-center gap-4 text-xs font-bold text-gray-505">
-                        <span className="flex items-center gap-1">⏱️ {formatDur(totalMins)}</span>
-                        <span className="flex items-center gap-1">💶 {totalBudget} €</span>
+            {!collapsed && (
+                <div className="flex flex-col gap-1 text-[11px] w-full bg-gray-50 p-2.5 rounded-xl border border-gray-150 shadow-inner mb-1">
+                    <div className="flex justify-between font-medium text-gray-600">
+                        <span>Durée :</span>
+                        <span className="font-extrabold text-gray-800">{formatDur(totalMins)}</span>
                     </div>
-                ) : (
-                    <div className="flex flex-col gap-1 text-xs w-full">
-                        <div className="flex justify-between font-medium"><span>Durée :</span><span className="font-extrabold">{formatDur(totalMins)}</span></div>
-                        <div className="flex justify-between font-medium"><span>Budget :</span><span className="font-extrabold text-blue-600">{totalBudget} €</span></div>
+                    <div className="flex justify-between font-medium text-gray-600">
+                        <span>Budget :</span>
+                        <span className="font-extrabold text-blue-600">{totalBudget} €</span>
                     </div>
-                )}
-                <span className="text-[10px] text-blue-650 font-extrabold">{collapsed ? 'Détails' : 'Réduire'}</span>
+                </div>
+            )}
+            <div className="flex items-center gap-2 w-full">
+                <div onClick={() => setCollapsed(!collapsed)} className="flex items-center justify-between gap-1 py-2 px-2.5 bg-gray-50 rounded-xl cursor-pointer border border-gray-150 shadow-sm flex-1 max-w-[200px] text-[11px] select-none hover:bg-gray-100 transition-colors">
+                    <div className="flex items-center gap-2 font-bold text-gray-505 truncate">
+                        <span className="truncate">⏱️ {formatDur(totalMins)}</span>
+                        <span className="truncate">💶 {totalBudget}€</span>
+                    </div>
+                    <span className={`text-[10px] text-blue-650 font-black shrink-0 transition-transform ${collapsed ? '' : 'rotate-90'}`}>
+                        &gt;
+                    </span>
+                </div>
+                <button onClick={saveToDb} disabled={isSaving} className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 px-3 rounded-xl font-bold text-xs shadow-sm h-[36px] flex items-center justify-center transition-all">
+                    {isSaving ? 'Sauvegarde...' : 'Sauvegarder le projet'}
+                </button>
             </div>
-            <button onClick={saveToDb} disabled={isSaving} className="w-full bg-blue-600 text-white py-2.5 rounded-xl font-bold text-sm shadow-sm">
-                {isSaving ? 'Sauvegarde...' : 'Sauvegarder le projet'}
-            </button>
         </div>
     );
 }

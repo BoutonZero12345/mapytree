@@ -62,9 +62,13 @@ export default function FavoritesTabContent({ showToast }) {
                                     <p className="font-bold text-gray-800 text-sm truncate">{fav.name}</p>
                                     <p className="text-xs text-gray-505 truncate">{fav.address}</p>
                                 </div>
-                                <div className="flex gap-1">
-                                    <button onClick={() => setEditingFavId(editingFavId === fav.id ? null : fav.id)} className="p-1 text-gray-450">📝</button>
-                                    <button onClick={() => window.confirm("Supprimer ?") && deleteFavorite(fav.id)} className="p-1 text-gray-455">✕</button>
+                                <div className="flex gap-0.5">
+                                    <button onClick={() => setEditingFavId(editingFavId === fav.id ? null : fav.id)} className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors flex items-center justify-center" title="Modifier">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" /></svg>
+                                    </button>
+                                    <button onClick={() => window.confirm("Supprimer ?") && deleteFavorite(fav.id)} className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors flex items-center justify-center" title="Supprimer">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+                                    </button>
                                 </div>
                             </div>
                             {editingFavId === fav.id && <FavoriteEditForm fav={fav} />}
